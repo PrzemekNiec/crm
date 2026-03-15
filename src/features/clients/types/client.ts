@@ -95,19 +95,19 @@ export const clientFormSchema = z.object({
     .string()
     .min(2, "Imię i nazwisko musi mieć co najmniej 2 znaki")
     .max(120, "Maksymalnie 120 znaków"),
-  phone: z.string().max(20).optional().default(""),
-  email: z.string().email("Nieprawidłowy adres e-mail").or(z.literal("")).optional().default(""),
+  phone: z.string().max(20),
+  email: z.string().email("Nieprawidłowy adres e-mail").or(z.literal("")),
   preferredContactChannel: z.enum(CONTACT_CHANNELS).optional(),
-  leadSource: z.string().max(100).optional().default(""),
+  leadSource: z.string().max(100),
   productType: z.enum(PRODUCT_TYPES).optional(),
   loanAmount: z.coerce.number().nonnegative().optional(),
   propertyValue: z.coerce.number().nonnegative().optional(),
   downPayment: z.coerce.number().nonnegative().optional(),
-  bankPrimary: z.string().max(100).optional().default(""),
-  stage: z.enum(CLIENT_STAGES).default("new_lead"),
-  priority: z.enum(PRIORITIES).default("normal"),
-  mainNote: z.string().max(5000).optional().default(""),
-  tags: z.array(z.string().max(50)).max(20).optional().default([]),
+  bankPrimary: z.string().max(100),
+  stage: z.enum(CLIENT_STAGES),
+  priority: z.enum(PRIORITIES),
+  mainNote: z.string().max(5000),
+  tags: z.array(z.string().max(50)).max(20),
 });
 
 export type ClientFormValues = z.infer<typeof clientFormSchema>;
