@@ -90,12 +90,13 @@ export const PRODUCT_TYPE_LABELS: Record<ProductType, string> = {
 
 // ─── Client source ───────────────────────────────────────────
 
-export const CLIENT_SOURCES = ["organic", "referral"] as const;
+export const CLIENT_SOURCES = ["organic", "referral", "converted"] as const;
 export type ClientSource = (typeof CLIENT_SOURCES)[number];
 
 export const CLIENT_SOURCE_LABELS: Record<ClientSource, string> = {
   organic: "Własny",
   referral: "Pośrednik",
+  converted: "Skonwertowany lead",
 };
 
 // ─── Zod schema: form input (create / edit) ──────────────────

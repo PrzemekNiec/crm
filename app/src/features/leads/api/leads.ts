@@ -1,9 +1,11 @@
 import {
   collection,
+  doc,
   query,
   orderBy,
   getDocs,
   addDoc,
+  updateDoc,
   serverTimestamp,
   type FirestoreDataConverter,
   type QueryDocumentSnapshot,
@@ -91,4 +93,45 @@ export async function createLead(
     createdAt: serverTimestamp(),
   });
   return docRef.id;
+}
+
+// ─── Convert lead to client ─────────────────────────────────
+
+export async function convertLead(
+  uid: string,
+  lead: LeadDTO
+): Promise<string> {
+  const db = getDb();
+
+  // 1. Create client document
+  const clientRef = collection(db, "users", uid, "clients");
+  const clientDoc = await addDoc(clientRef, {
+    fullName: lead.fullName,
+    phone: lead.phone ?? "",
+    email: "",
+    leadSource: "",
+    bankPrimary: "",
+    mainNote: "",
+    tags: [],
+    stage: "first_contact",
+    priority: "normal",
+    source: "converted",
+    loanAmount: lead.estimatedAmount ?? null,
+    lastContactAt: null,
+    nextActionAt: null,
+    nextActionTaskId: null,
+    archived: false,
+    softDeleted: false,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+
+  // 2. Update lead status
+  const leadRef = doc(db, "users", uid, "leads", lead.id);
+  await updateDoc(leadRef, {
+    status: "converted",
+    convertedClientId: clientDoc.id,
+  });
+
+  return clientDoc.id;
 }

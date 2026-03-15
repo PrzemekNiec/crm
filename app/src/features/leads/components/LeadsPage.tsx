@@ -1,11 +1,21 @@
+import { useState } from "react";
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Zap, UserPlus } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import {
+  Dialog,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/Dialog";
 import { toast } from "@/components/ui/Toast";
 import { useLeads, useCreateLead } from "../api/useLeads";
+import { useConvertLead } from "../api/useConvertLead";
+import type { LeadDTO } from "../api/leads";
 import {
   leadFormSchema,
   LEAD_STATUS_LABELS,
@@ -52,11 +62,69 @@ function SkeletonRow() {
   );
 }
 
+// ─── Glassmorphism style ─────────────────────────────────────
+
+const GLASS = {
+  background: "rgba(30, 41, 59, 0.5)",
+  backdropFilter: "blur(12px)",
+  WebkitBackdropFilter: "blur(12px)",
+  border: "1px solid rgba(255, 255, 255, 0.1)",
+  boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
+} as const;
+
+// ─── Convert Confirmation Dialog ─────────────────────────────
+
+function ConvertDialog({
+  lead,
+  open,
+  onOpenChange,
+}: {
+  lead: LeadDTO | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const convert = useConvertLead();
+
+  if (!lead) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogHeader>
+        <DialogTitle>Konwertuj leada na klienta</DialogTitle>
+        <DialogDescription>
+          Czy na pewno chcesz przenieść{" "}
+          <span className="font-semibold text-foreground">
+            {lead.fullName}
+          </span>{" "}
+          do głównej bazy klientów? Spowoduje to utworzenie jego profilu.
+        </DialogDescription>
+      </DialogHeader>
+      <DialogFooter>
+        <Button variant="outline" onClick={() => onOpenChange(false)}>
+          Anuluj
+        </Button>
+        <Button
+          onClick={() =>
+            convert.mutate(lead, {
+              onSuccess: () => onOpenChange(false),
+            })
+          }
+          disabled={convert.isPending}
+        >
+          <UserPlus className="h-4 w-4" />
+          {convert.isPending ? "Konwertowanie…" : "Konwertuj"}
+        </Button>
+      </DialogFooter>
+    </Dialog>
+  );
+}
+
 // ─── Page ───────────────────────────────────────────────────
 
 export function LeadsPage() {
   const { data: leads, isLoading, isError } = useLeads();
   const createLead = useCreateLead();
+  const [convertLead, setConvertLead] = useState<LeadDTO | null>(null);
 
   const { register, handleSubmit, reset } = useForm<LeadFormValues>({
     resolver: zodResolver(leadFormSchema) as Resolver<LeadFormValues>,
@@ -75,10 +143,6 @@ export function LeadsPage() {
     });
   };
 
-  const handleConvert = () => {
-    toast.success("Funkcja przenoszenia do głównej bazy już wkrótce!");
-  };
-
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
       {/* Header */}
@@ -94,14 +158,8 @@ export function LeadsPage() {
       {/* Quick Add Form */}
       <form
         onSubmit={handleSubmit(onSubmit)}
-        className="flex flex-col gap-3 rounded-lg p-4 sm:flex-row sm:items-end"
-        style={{
-          background: "rgba(30, 41, 59, 0.5)",
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
-          border: "1px solid rgba(255, 255, 255, 0.1)",
-          boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
-        }}
+        className="flex flex-col gap-3 rounded-xl p-4 sm:flex-row sm:items-end"
+        style={GLASS}
       >
         <div className="flex flex-1 flex-col gap-1.5">
           <label className="text-xs font-medium text-muted-foreground">
@@ -150,7 +208,7 @@ export function LeadsPage() {
 
       {/* Error */}
       {isError && (
-        <div className="rounded-lg border border-destructive/30 bg-card p-8 text-center">
+        <div className="rounded-xl border border-destructive/30 bg-card p-8 text-center">
           <p className="text-sm text-destructive">
             Nie udało się pobrać listy leadów. Spróbuj odświeżyć stronę.
           </p>
@@ -159,7 +217,10 @@ export function LeadsPage() {
 
       {/* Empty */}
       {!isLoading && !isError && leads && leads.length === 0 && (
-        <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card p-12 text-center">
+        <div
+          className="flex flex-col items-center gap-3 rounded-xl p-12 text-center"
+          style={GLASS}
+        >
           <Zap className="h-12 w-12 text-muted-foreground" />
           <p className="text-lg font-medium text-foreground">
             Brak potencjalnych klientów
@@ -174,18 +235,12 @@ export function LeadsPage() {
       {leads && leads.length > 0 && (
         <>
           <div
-            className="hidden overflow-x-auto rounded-lg md:block"
-            style={{
-              background: "rgba(30, 41, 59, 0.5)",
-              backdropFilter: "blur(12px)",
-              WebkitBackdropFilter: "blur(12px)",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
-              boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
-            }}
+            className="hidden overflow-x-auto rounded-xl md:block"
+            style={GLASS}
           >
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border bg-muted/50 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                <tr className="border-b border-white/[0.06] text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   <th className="px-4 py-3">Imię i nazwisko</th>
                   <th className="px-4 py-3">Kwota</th>
                   <th className="px-4 py-3">Telefon</th>
@@ -193,7 +248,7 @@ export function LeadsPage() {
                   <th className="px-4 py-3 text-right">Akcje</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody className="divide-y divide-white/[0.06]">
                 {leads.map((lead) => (
                   <tr
                     key={lead.id}
@@ -215,14 +270,16 @@ export function LeadsPage() {
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleConvert}
-                      >
-                        <UserPlus className="h-3.5 w-3.5" />
-                        Konwertuj
-                      </Button>
+                      {lead.status !== "converted" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setConvertLead(lead)}
+                        >
+                          <UserPlus className="h-3.5 w-3.5" />
+                          Konwertuj
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -235,14 +292,8 @@ export function LeadsPage() {
             {leads.map((lead) => (
               <div
                 key={lead.id}
-                className="rounded-lg p-4"
-                style={{
-                  background: "rgba(30, 41, 59, 0.5)",
-                  backdropFilter: "blur(12px)",
-                  WebkitBackdropFilter: "blur(12px)",
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
-                  boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
-                }}
+                className="rounded-xl p-4"
+                style={GLASS}
               >
                 <div className="flex items-start justify-between gap-2">
                   <p className="font-medium text-foreground">{lead.fullName}</p>
@@ -255,21 +306,32 @@ export function LeadsPage() {
                   <span>{formatPLN(lead.estimatedAmount)}</span>
                   {lead.phone && <span>{lead.phone}</span>}
                 </div>
-                <div className="mt-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleConvert}
-                  >
-                    <UserPlus className="h-3.5 w-3.5" />
-                    Konwertuj
-                  </Button>
-                </div>
+                {lead.status !== "converted" && (
+                  <div className="mt-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setConvertLead(lead)}
+                    >
+                      <UserPlus className="h-3.5 w-3.5" />
+                      Konwertuj
+                    </Button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
         </>
       )}
+
+      {/* Convert confirmation dialog */}
+      <ConvertDialog
+        lead={convertLead}
+        open={convertLead !== null}
+        onOpenChange={(open) => {
+          if (!open) setConvertLead(null);
+        }}
+      />
     </div>
   );
 }
