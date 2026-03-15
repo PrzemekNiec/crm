@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useAuthListener } from "@/hooks/useAuthListener";
 import { AuthGuard } from "@/components/AuthGuard";
-import { AppShell } from "@/components/AppShell";
+import { AppShell } from "@/components/layout/AppShell";
 import { DashboardPage } from "@/features/dashboard/components/DashboardPage";
 
 const queryClient = new QueryClient({
