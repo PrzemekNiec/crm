@@ -11,6 +11,10 @@ import {
   memoryLocalCache,
   type Firestore,
 } from "firebase/firestore";
+import {
+  getFunctions as _getFunctions,
+  type Functions,
+} from "firebase/functions";
 
 // ─── Config ──────────────────────────────────────────────────
 // Values are safe to expose in client-side code — Firestore
@@ -28,6 +32,7 @@ const firebaseConfig = {
 let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
 let db: Firestore | null = null;
+let functions: Functions | null = null;
 
 /**
  * Firebase App — initialized once, lazily.
@@ -50,6 +55,16 @@ export function getFirebaseAuth(): Auth {
 }
 
 export const googleProvider = new GoogleAuthProvider();
+
+/**
+ * Firebase Functions — europe-west1 region.
+ */
+export function getFunctions(): Functions {
+  if (!functions) {
+    functions = _getFunctions(getFirebaseApp(), "europe-west1");
+  }
+  return functions;
+}
 
 // ─── Firestore with dynamic cache ───────────────────────────
 //

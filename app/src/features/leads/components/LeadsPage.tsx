@@ -94,7 +94,14 @@ export function LeadsPage() {
       {/* Quick Add Form */}
       <form
         onSubmit={handleSubmit(onSubmit)}
-        className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 sm:flex-row sm:items-end"
+        className="flex flex-col gap-3 rounded-lg p-4 sm:flex-row sm:items-end"
+        style={{
+          background: "rgba(30, 41, 59, 0.5)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+          border: "1px solid rgba(255, 255, 255, 0.1)",
+          boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
+        }}
       >
         <div className="flex flex-1 flex-col gap-1.5">
           <label className="text-xs font-medium text-muted-foreground">
@@ -166,7 +173,16 @@ export function LeadsPage() {
       {/* Desktop table */}
       {leads && leads.length > 0 && (
         <>
-          <div className="hidden overflow-x-auto rounded-lg border border-border md:block">
+          <div
+            className="hidden overflow-x-auto rounded-lg md:block"
+            style={{
+              background: "rgba(30, 41, 59, 0.5)",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
+            }}
+          >
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/50 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -181,7 +197,7 @@ export function LeadsPage() {
                 {leads.map((lead) => (
                   <tr
                     key={lead.id}
-                    className="bg-card transition-colors hover:bg-accent/50"
+                    className="transition-colors hover:bg-white/[0.05]"
                   >
                     <td className="px-4 py-3 font-medium text-foreground">
                       {lead.fullName}
@@ -219,7 +235,14 @@ export function LeadsPage() {
             {leads.map((lead) => (
               <div
                 key={lead.id}
-                className="rounded-lg border border-border bg-card p-4"
+                className="rounded-lg p-4"
+                style={{
+                  background: "rgba(30, 41, 59, 0.5)",
+                  backdropFilter: "blur(12px)",
+                  WebkitBackdropFilter: "blur(12px)",
+                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
+                }}
               >
                 <div className="flex items-start justify-between gap-2">
                   <p className="font-medium text-foreground">{lead.fullName}</p>

@@ -9,6 +9,10 @@
   --color-card: #23272d;
   --color-card-foreground: #f0f4f8;
 
+  /* Popover / Dropdown */
+  --color-popover: #1e2329;
+  --color-popover-foreground: #f0f4f8;
+
   /* Główne Akcenty (Sage Green / Mięta — Pomocnik Kasi) */
   --color-primary: #c9956b;
   --color-primary-foreground: #1a1d21;
@@ -61,4 +65,38 @@ body {
 
 #root {
   min-height: 100svh;
+}
+
+/* ─── Fix: native select/option contrast on dark backgrounds ── */
+
+select option {
+  background-color: #1e2329;
+  color: #f0f4f8;
+}
+
+/* ─── Fix: Radix UI popper/popover contrast ────────────────── */
+
+[data-radix-popper-content-wrapper] {
+  z-index: 100 !important;
+}
+
+[role="option"],
+[role="menuitem"] {
+  color: #f0f4f8;
+  background-color: #1e2329;
+}
+
+/* Aktywny / wybrany element */
+[role="option"][data-highlighted],
+[role="option"][aria-selected="true"],
+[role="menuitem"][data-highlighted] {
+  background-color: var(--color-primary) !important;
+  color: var(--color-primary-foreground) !important;
+}
+
+/* Subtelny hover dla nieaktywnych */
+[role="option"]:hover,
+[role="menuitem"]:hover {
+  background-color: rgb(201 149 107 / 0.15) !important;
+  cursor: pointer;
 }
