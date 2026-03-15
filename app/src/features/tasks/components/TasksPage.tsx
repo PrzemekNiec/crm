@@ -47,7 +47,7 @@ export function TasksPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 rounded-lg border border-border bg-muted p-1">
+      <div className="flex gap-1 rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-1">
         {TABS.map(({ key, label }) => {
           const count =
             key === "today" ? todayCount : key === "overdue" ? overdueCount : (tasks?.length ?? 0);
@@ -60,7 +60,7 @@ export function TasksPage() {
               className={cn(
                 "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors cursor-pointer flex-1 justify-center",
                 tab === key
-                  ? "bg-card text-foreground shadow-sm"
+                  ? "bg-white/[0.08] text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >

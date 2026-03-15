@@ -22,7 +22,7 @@ export function SettingsPage() {
       <h1 className="text-2xl font-bold text-foreground">Ustawienia</h1>
 
       {/* Tabs */}
-      <div className="flex gap-1 rounded-lg border border-border bg-muted p-1">
+      <div className="flex gap-1 rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-1">
         {TABS.map(({ key, label, icon: Icon }) => (
           <button
             key={key}
@@ -31,7 +31,7 @@ export function SettingsPage() {
             className={cn(
               "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors cursor-pointer flex-1 justify-center",
               tab === key
-                ? "bg-card text-foreground shadow-sm"
+                ? "bg-white/[0.08] text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
@@ -52,7 +52,7 @@ export function SettingsPage() {
 
 function GeneralTab() {
   return (
-    <div className="rounded-lg border border-border bg-card p-6">
+    <div className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-6">
       <h2 className="text-lg font-semibold text-foreground">Ogólne</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         Ustawienia ogólne będą dostępne w kolejnych wersjach aplikacji.
@@ -69,7 +69,7 @@ function IntegrationsTab() {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border border-border bg-card p-6 animate-pulse">
+      <div className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-6 animate-pulse">
         <div className="flex items-center gap-4">
           <div className="h-12 w-12 rounded-lg bg-muted" />
           <div className="flex-1 space-y-2">
@@ -88,10 +88,10 @@ function IntegrationsTab() {
   return (
     <div className="flex flex-col gap-4">
       {/* Google Calendar Card */}
-      <div className="rounded-lg border border-border bg-card p-6">
+      <div className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-6">
         <div className="flex items-start gap-4">
           {/* Icon */}
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/20">
             <Calendar className="h-6 w-6 text-primary" />
           </div>
 
@@ -121,7 +121,7 @@ function IntegrationsTab() {
 
             {/* Calendar info or connect button */}
             {connected ? (
-              <div className="mt-4 rounded-md border border-border bg-muted/50 px-4 py-3">
+              <div className="mt-4 rounded-md border border-white/[0.06] bg-white/[0.03] px-4 py-3">
                 {calendarName ? (
                   <p className="text-sm text-foreground">
                     <span className="text-muted-foreground">Wybrany kalendarz: </span>

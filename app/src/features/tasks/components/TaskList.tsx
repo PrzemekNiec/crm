@@ -24,10 +24,8 @@ import {
   Calendar,
   Check,
   Clock,
-  MoreVertical,
-  Pencil,
-  Trash2,
   User,
+  X,
 } from "lucide-react";
 
 type TabFilter = "today" | "overdue" | "all";
@@ -180,10 +178,9 @@ function RescheduleDialog({
   );
 }
 
-// ─── Action Menu ─────────────────────────────────────────────
+// ─── Action Buttons ──────────────────────────────────────────
 
 function TaskActions({ task }: { task: TaskDTO }) {
-  const [menuOpen, setMenuOpen] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const complete = useCompleteTask();
   const deleteTask = useDeleteTask();
@@ -192,62 +189,48 @@ function TaskActions({ task }: { task: TaskDTO }) {
 
   return (
     <>
-      <div className="relative flex items-center gap-1">
-        {/* Complete button */}
+      <div className="flex items-center gap-1.5">
+        {/* Complete — green */}
         {!isDone && (
           <button
             type="button"
             onClick={() => complete.mutate(task.id)}
             disabled={complete.isPending}
             title="Oznacz jako wykonane"
-            className="flex h-6 w-6 items-center justify-center rounded-full border border-primary/40 text-primary/60 transition-all hover:bg-primary hover:text-primary-foreground cursor-pointer"
+            className="flex h-7 w-7 items-center justify-center rounded-full border border-emerald-500/40 text-emerald-500 transition-all hover:bg-emerald-500 hover:text-white cursor-pointer"
           >
-            <Check className="h-3 w-3" />
+            <Check className="h-3.5 w-3.5" />
           </button>
         )}
 
-        {/* More menu */}
+        {/* Reschedule — gold */}
+        {!isDone && (
+          <button
+            type="button"
+            onClick={() => setRescheduleOpen(true)}
+            title="Przełóż"
+            className="flex h-7 w-7 items-center justify-center rounded-full border border-amber-500/40 text-amber-500 transition-all hover:bg-amber-500 hover:text-white cursor-pointer"
+          >
+            <Clock className="h-3.5 w-3.5" />
+          </button>
+        )}
+
+        {/* Delete — red */}
         <button
           type="button"
-          onClick={() => setMenuOpen((v) => !v)}
-          className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer"
+          onClick={() =>
+            deleteTask.mutate({
+              taskId: task.id,
+              googleEventId: task.googleEventId,
+              syncToGoogleCalendar: task.syncToGoogleCalendar,
+            })
+          }
+          disabled={deleteTask.isPending}
+          title="Usuń"
+          className="flex h-7 w-7 items-center justify-center rounded-full border border-red-500/40 text-red-500 transition-all hover:bg-red-500 hover:text-white cursor-pointer"
         >
-          <MoreVertical className="h-4 w-4" />
+          <X className="h-3.5 w-3.5" />
         </button>
-
-        {menuOpen && (
-          <div className="absolute right-0 top-full z-20 mt-1 w-44 rounded-lg border border-border bg-card p-1 shadow-lg">
-            {!isDone && (
-              <button
-                type="button"
-                onClick={() => {
-                  setMenuOpen(false);
-                  setRescheduleOpen(true);
-                }}
-                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-                Przełóż
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                setMenuOpen(false);
-                deleteTask.mutate({
-                  taskId: task.id,
-                  googleEventId: task.googleEventId,
-                  syncToGoogleCalendar: task.syncToGoogleCalendar,
-                });
-              }}
-              disabled={deleteTask.isPending}
-              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-destructive hover:bg-destructive/10 cursor-pointer"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              {deleteTask.isPending ? "Usuwanie…" : "Usuń"}
-            </button>
-          </div>
-        )}
       </div>
 
       <RescheduleDialog
@@ -263,7 +246,7 @@ function TaskActions({ task }: { task: TaskDTO }) {
 
 function SkeletonCard() {
   return (
-    <div className="rounded-lg border border-border bg-card p-4 animate-pulse">
+    <div className="rounded-xl border border-white/[0.08] bg-white/[0.04] p-4 animate-pulse">
       <div className="flex items-center gap-3">
         <div className="h-8 w-8 rounded bg-muted" />
         <div className="flex-1 space-y-2">
@@ -314,7 +297,7 @@ export function TaskList({ tasks, isLoading, tab }: TaskListProps) {
     };
 
     return (
-      <div className="flex flex-col items-center gap-2 rounded-lg border border-border bg-card p-12 text-center">
+      <div className="flex flex-col items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-12 text-center">
         <Calendar className="h-10 w-10 text-muted-foreground" />
         <p className="text-sm text-muted-foreground">{messages[tab]}</p>
       </div>
@@ -326,14 +309,14 @@ export function TaskList({ tasks, isLoading, tab }: TaskListProps) {
       {filtered.map((task) => (
         <div
           key={task.id}
-          className={`rounded-lg border bg-card p-4 transition-colors ${
+          className={`rounded-xl border p-4 transition-colors backdrop-blur-xl ${
             task.status === "done"
-              ? "border-border/50 opacity-60"
+              ? "border-white/[0.04] bg-white/[0.02] opacity-60"
               : task.dueDate &&
                   isOverdue(task.dueDate) &&
                   !isToday(task.dueDate)
-                ? "border-destructive/30"
-                : "border-border"
+                ? "border-red-500/20 bg-white/[0.04]"
+                : "border-white/[0.08] bg-white/[0.04]"
           }`}
         >
           <div className="flex items-start gap-3">
