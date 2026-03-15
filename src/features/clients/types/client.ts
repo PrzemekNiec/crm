@@ -88,27 +88,54 @@ export const PRODUCT_TYPE_LABELS: Record<ProductType, string> = {
   other: "Inny",
 };
 
+// ─── Client source ───────────────────────────────────────────
+
+export const CLIENT_SOURCES = ["organic", "referral"] as const;
+export type ClientSource = (typeof CLIENT_SOURCES)[number];
+
+export const CLIENT_SOURCE_LABELS: Record<ClientSource, string> = {
+  organic: "Własny",
+  referral: "Pośrednik",
+};
+
 // ─── Zod schema: form input (create / edit) ──────────────────
 
-export const clientFormSchema = z.object({
-  fullName: z
-    .string()
-    .min(2, "Imię i nazwisko musi mieć co najmniej 2 znaki")
-    .max(120, "Maksymalnie 120 znaków"),
-  phone: z.string().max(20),
-  email: z.string().email("Nieprawidłowy adres e-mail").or(z.literal("")),
-  preferredContactChannel: z.enum(CONTACT_CHANNELS).optional(),
-  leadSource: z.string().max(100),
-  productType: z.enum(PRODUCT_TYPES).optional(),
-  loanAmount: z.coerce.number().nonnegative().optional(),
-  propertyValue: z.coerce.number().nonnegative().optional(),
-  downPayment: z.coerce.number().nonnegative().optional(),
-  bankPrimary: z.string().max(100),
-  stage: z.enum(CLIENT_STAGES),
-  priority: z.enum(PRIORITIES),
-  mainNote: z.string().max(5000),
-  tags: z.array(z.string().max(50)).max(20),
-});
+export const clientFormSchema = z
+  .object({
+    fullName: z
+      .string()
+      .min(2, "Imię i nazwisko musi mieć co najmniej 2 znaki")
+      .max(120, "Maksymalnie 120 znaków"),
+    phone: z.string().max(20),
+    email: z.string().email("Nieprawidłowy adres e-mail").or(z.literal("")),
+    preferredContactChannel: z.enum(CONTACT_CHANNELS).optional(),
+    leadSource: z.string().max(100),
+    productType: z.enum(PRODUCT_TYPES).optional(),
+    loanAmount: z.coerce.number().nonnegative().optional(),
+    propertyValue: z.coerce.number().nonnegative().optional(),
+    downPayment: z.coerce.number().nonnegative().optional(),
+    bankPrimary: z.string().max(100),
+    stage: z.enum(CLIENT_STAGES),
+    priority: z.enum(PRIORITIES),
+    mainNote: z.string().max(5000),
+    tags: z.array(z.string().max(50)).max(20),
+    source: z.enum(CLIENT_SOURCES).default("organic"),
+    referralName: z.string().max(120).optional(),
+    referralRate: z.coerce
+      .number()
+      .min(0, "Stawka nie może być ujemna")
+      .max(100, "Stawka nie może przekraczać 100%")
+      .optional(),
+  })
+  .refine(
+    (data) =>
+      data.source !== "referral" ||
+      (data.referralName && data.referralName.trim().length > 0),
+    {
+      message: "Podaj nazwę pośrednika",
+      path: ["referralName"],
+    }
+  );
 
 export type ClientFormValues = z.infer<typeof clientFormSchema>;
 

@@ -39,6 +39,9 @@ interface ClientDoc {
   priority: string;
   mainNote?: string;
   tags?: string[];
+  source?: string;
+  referralName?: string;
+  referralRate?: number;
   lastContactAt: Timestamp | null;
   nextActionAt: Timestamp | null;
   nextActionTaskId: string | null;
@@ -67,6 +70,9 @@ export interface ClientDTO {
   priority: string;
   mainNote: string;
   tags: string[];
+  source: string;
+  referralName?: string;
+  referralRate?: number;
   lastContactAt: string | null;
   nextActionAt: string | null;
   nextActionTaskId: string | null;
@@ -105,6 +111,9 @@ export const clientConverter: FirestoreDataConverter<ClientDTO> = {
       priority: d.priority,
       mainNote: d.mainNote ?? "",
       tags: d.tags ?? [],
+      source: d.source ?? "organic",
+      referralName: d.referralName,
+      referralRate: d.referralRate,
       lastContactAt: timestampToISO(d.lastContactAt),
       nextActionAt: timestampToISO(d.nextActionAt),
       nextActionTaskId: d.nextActionTaskId ?? null,

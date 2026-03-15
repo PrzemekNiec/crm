@@ -19,8 +19,11 @@ import {
   STAGE_LABELS,
   PRIORITIES,
   PRIORITY_LABELS,
+  CLIENT_SOURCES,
+  CLIENT_SOURCE_LABELS,
   type ClientFormValues,
 } from "../types/client";
+import { cn } from "@/lib/cn";
 
 interface CreateClientDialogProps {
   open: boolean;
@@ -47,6 +50,7 @@ export function CreateClientDialog({
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm<ClientFormValues>({
     resolver: zodResolver(clientFormSchema) as Resolver<ClientFormValues>,
@@ -57,8 +61,12 @@ export function CreateClientDialog({
       stage: "new_lead",
       priority: "normal",
       mainNote: "",
+      source: "organic",
+      referralName: "",
     },
   });
+
+  const source = watch("source");
 
   const onSubmit = (values: ClientFormValues) => {
     createClient.mutate(values, {
@@ -91,6 +99,73 @@ export function CreateClientDialog({
       </DialogHeader>
 
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+        {/* Source */}
+        <div className="flex flex-col gap-2">
+          <Label>Źródło klienta</Label>
+          <div className="flex gap-2">
+            {CLIENT_SOURCES.map((s) => (
+              <label
+                key={s}
+                className={cn(
+                  "flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-all",
+                  source === s
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-card text-muted-foreground hover:border-primary/40"
+                )}
+              >
+                <input
+                  type="radio"
+                  value={s}
+                  {...register("source")}
+                  className="sr-only"
+                />
+                {CLIENT_SOURCE_LABELS[s]}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Referral details (conditional) */}
+        <div
+          className={cn(
+            "grid grid-cols-1 gap-4 overflow-hidden transition-all duration-300 sm:grid-cols-[1fr_8rem]",
+            source === "referral"
+              ? "max-h-40 opacity-100"
+              : "max-h-0 opacity-0"
+          )}
+        >
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="referralName">Nazwa pośrednika</Label>
+            <Input
+              id="referralName"
+              placeholder="Biuro X"
+              {...register("referralName")}
+            />
+            {errors.referralName && (
+              <p className="text-xs text-destructive">
+                {errors.referralName.message}
+              </p>
+            )}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="referralRate">Stawka %</Label>
+            <Input
+              id="referralRate"
+              type="number"
+              min={0}
+              max={100}
+              step={0.5}
+              placeholder="10"
+              {...register("referralRate")}
+            />
+            {errors.referralRate && (
+              <p className="text-xs text-destructive">
+                {errors.referralRate.message}
+              </p>
+            )}
+          </div>
+        </div>
+
         {/* Full name */}
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="fullName">Imię i nazwisko *</Label>

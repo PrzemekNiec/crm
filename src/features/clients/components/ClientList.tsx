@@ -8,7 +8,7 @@ import {
   type Priority,
 } from "../types/client";
 import type { ClientDTO } from "../api/clients";
-import { Users, Phone, Mail } from "lucide-react";
+import { Users, Phone, Mail, Handshake } from "lucide-react";
 
 // ─── Stage badge variant mapping ─────────────────────────────
 
@@ -138,6 +138,7 @@ export function ClientList({ searchQuery }: ClientListProps) {
             <tr className="border-b border-border bg-muted/50 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
               <th className="px-4 py-3">Imię i nazwisko</th>
               <th className="px-4 py-3">Kontakt</th>
+              <th className="px-4 py-3">Źródło</th>
               <th className="px-4 py-3">Etap</th>
               <th className="px-4 py-3">Priorytet</th>
             </tr>
@@ -169,6 +170,23 @@ export function ClientList({ searchQuery }: ClientListProps) {
                       <span className="text-xs italic">Brak danych</span>
                     )}
                   </div>
+                </td>
+                <td className="px-4 py-3">
+                  {client.source === "referral" ? (
+                    <span className="flex items-center gap-1.5 text-xs text-primary">
+                      <Handshake className="h-3.5 w-3.5" />
+                      <span>
+                        {client.referralName || "Pośrednik"}
+                        {client.referralRate != null && (
+                          <span className="ml-1 text-primary/70">
+                            &bull; {client.referralRate}%
+                          </span>
+                        )}
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Własny</span>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <Badge variant={stageBadgeVariant(client.stage)}>
@@ -217,10 +235,21 @@ export function ClientList({ searchQuery }: ClientListProps) {
               )}
             </div>
 
-            <div className="mt-3">
+            <div className="mt-3 flex items-center gap-2 flex-wrap">
               <Badge variant={stageBadgeVariant(client.stage)}>
                 {STAGE_LABELS[client.stage as ClientStage] ?? client.stage}
               </Badge>
+              {client.source === "referral" && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                  <Handshake className="h-3 w-3" />
+                  {client.referralName || "Pośrednik"}
+                  {client.referralRate != null && (
+                    <span className="text-primary/70">
+                      &bull; {client.referralRate}%
+                    </span>
+                  )}
+                </span>
+              )}
             </div>
           </div>
         ))}
