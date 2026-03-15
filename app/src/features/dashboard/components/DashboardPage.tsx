@@ -11,6 +11,7 @@ import type { TaskDTO } from "@/features/tasks/types/task";
 import type { LeadDTO } from "@/features/leads/api/leads";
 import {
   AlertTriangle,
+  Briefcase,
   Calendar,
   Clock,
   Phone,
@@ -196,8 +197,17 @@ function TodayTimeline({ tasks }: { tasks: TaskDTO[] }) {
             </div>
             <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
               <span className="flex items-center gap-1">
-                <User className="h-3 w-3" />
-                {task.clientName}
+                {task.clientName ? (
+                  <>
+                    <User className="h-3 w-3" />
+                    {task.clientName}
+                  </>
+                ) : (
+                  <>
+                    <Briefcase className="h-3 w-3" />
+                    <span className="italic">Zadanie ogólne</span>
+                  </>
+                )}
               </span>
               <span className="flex items-center gap-1">
                 <Clock className="h-3 w-3" />
@@ -239,7 +249,7 @@ function OverdueTasks({ tasks }: { tasks: TaskDTO[] }) {
                 {task.title}
               </h4>
               <p className="text-xs text-red-300/60">
-                {task.clientName}
+                {task.clientName || "Zadanie ogólne"}
                 {task.dueDate &&
                   ` · ${new Date(task.dueDate).toLocaleDateString("pl-PL")}`}
               </p>

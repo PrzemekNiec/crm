@@ -61,8 +61,8 @@ export type TaskPriority = (typeof TASK_PRIORITIES)[number];
 // ─── Zod schema: form input ─────────────────────────────────
 
 export const taskFormSchema = z.object({
-  clientId: z.string().min(1, "Wybierz klienta"),
-  clientName: z.string().min(1),
+  clientId: z.string().optional().default(""),
+  clientName: z.string().optional().default(""),
   type: z.enum(TASK_TYPES),
   title: z.string().min(2, "Tytuł musi mieć co najmniej 2 znaki").max(200),
   description: z.string().max(2000),
@@ -79,7 +79,7 @@ export type TaskFormValues = z.infer<typeof taskFormSchema>;
 export interface TaskDTO {
   id: string;
   clientId: string;
-  clientName: string;
+  clientName: string; // empty string when no client assigned
   type: TaskType;
   title: string;
   description: string;

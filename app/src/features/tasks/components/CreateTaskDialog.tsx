@@ -45,10 +45,13 @@ export function CreateTaskDialog({
   const { data: clients } = useClients();
   const createTask = useCreateTask();
 
-  const clientOptions = (clients ?? []).map((c) => ({
-    value: c.id,
-    label: c.fullName,
-  }));
+  const clientOptions = [
+    { value: "", label: "Zadanie ogólne (brak klienta)" },
+    ...(clients ?? []).map((c) => ({
+      value: c.id,
+      label: c.fullName,
+    })),
+  ];
 
   const {
     register,
@@ -110,20 +113,14 @@ export function CreateTaskDialog({
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
         {/* Client select */}
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="clientId">Klient *</Label>
+          <Label htmlFor="clientId">Klient</Label>
           <Select
             id="clientId"
             options={clientOptions}
-            placeholder="Wybierz klienta"
             value={watch("clientId")}
             onChange={onClientChange}
           />
           <input type="hidden" {...register("clientName")} />
-          {errors.clientId && (
-            <p className="text-xs text-destructive">
-              {errors.clientId.message}
-            </p>
-          )}
         </div>
 
         {/* Type + Title */}

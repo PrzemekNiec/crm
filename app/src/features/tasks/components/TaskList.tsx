@@ -6,7 +6,7 @@ import {
   type TaskType,
   type TaskDTO,
 } from "../types/task";
-import { Calendar, Clock, User } from "lucide-react";
+import { Briefcase, Calendar, Clock, User } from "lucide-react";
 
 type TabFilter = "today" | "overdue" | "all";
 
@@ -167,8 +167,17 @@ export function TaskList({ tasks, isLoading, tab }: TaskListProps) {
 
               {/* Client */}
               <div className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
-                <User className="h-3 w-3" />
-                {task.clientName}
+                {task.clientName ? (
+                  <>
+                    <User className="h-3 w-3" />
+                    {task.clientName}
+                  </>
+                ) : (
+                  <>
+                    <Briefcase className="h-3 w-3" />
+                    <span className="italic">Zadanie ogólne</span>
+                  </>
+                )}
               </div>
 
               {/* Due date + duration + sync */}
