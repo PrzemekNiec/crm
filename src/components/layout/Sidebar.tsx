@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   Users,
   CheckSquare,
+  Zap,
   Settings,
   LogOut,
   type LucideIcon,
@@ -22,6 +23,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/clients", label: "Klienci", icon: Users },
   { to: "/tasks", label: "Zadania", icon: CheckSquare },
+  { to: "/leads", label: "Potencjalni", icon: Zap },
   { to: "/settings", label: "Ustawienia", icon: Settings },
 ];
 

@@ -9,6 +9,7 @@ import { DashboardPage } from "@/features/dashboard/components/DashboardPage";
 import { ClientsPage } from "@/features/clients/components/ClientsPage";
 import { TasksPage } from "@/features/tasks/components/TasksPage";
 import { SettingsPage } from "@/features/settings/components/SettingsPage";
+import { LeadsPage } from "@/features/leads/components/LeadsPage";
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
 
@@ -31,6 +32,7 @@ function AppInner() {
           <Route index element={<DashboardPage />} />
           <Route path="clients" element={<ClientsPage />} />
           <Route path="tasks" element={<TasksPage />} />
+          <Route path="leads" element={<LeadsPage />} />
           <Route path="settings" element={<SettingsPage />} />
           {/* Phase 1 — remaining routes:
             <Route path="clients/:id" element={<ClientDetailPage />} />
