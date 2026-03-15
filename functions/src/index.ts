@@ -212,7 +212,7 @@ export const syncTaskToGoogleCalendar = onCall(
       },
     };
 
-    // 5. Upsert event (try PATCH first, if 404 then import with custom ID)
+    // 5. Upsert event (try PATCH first, if 404 then insert with custom ID)
     let htmlLink: string | null = null;
 
     try {
@@ -233,9 +233,10 @@ export const syncTaskToGoogleCalendar = onCall(
         const body = await patchRes.json();
         htmlLink = body.htmlLink ?? null;
       } else if (patchRes.status === 404) {
-        // Event doesn't exist yet — insert with custom ID
+        // Event doesn't exist yet — use standard insert (NOT /import)
+        // The id field in the body tells Google to use our custom event ID
         const insertRes = await fetch(
-          `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/import`,
+          `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
           {
             method: "POST",
             headers: {
