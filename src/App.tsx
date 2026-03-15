@@ -6,6 +6,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { ToastContainer } from "@/components/ui/Toast";
 import { DashboardPage } from "@/features/dashboard/components/DashboardPage";
 import { ClientsPage } from "@/features/clients/components/ClientsPage";
+import { TasksPage } from "@/features/tasks/components/TasksPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -25,10 +26,10 @@ function AppInner() {
         <Route element={<AppShell />}>
           <Route index element={<DashboardPage />} />
           <Route path="clients" element={<ClientsPage />} />
+          <Route path="tasks" element={<TasksPage />} />
           {/* Phase 1 — remaining routes:
             <Route path="clients/:id" element={<ClientDetailPage />} />
             <Route path="clients/:id/edit" element={<ClientFormPage />} />
-            <Route path="tasks" element={<TasksPage />} />
             <Route path="settings" element={<SettingsPage />} />
           */}
         </Route>
