@@ -84,7 +84,6 @@ export function CreateTaskDialog({
   const onSubmit = (values: TaskFormValues) => {
     createTask.mutate(values, {
       onSuccess: () => {
-        toast.success("Zadanie zostało dodane");
         reset();
         onOpenChange(false);
       },

@@ -1,22 +1,72 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { httpsCallable } from "firebase/functions";
 import { useAuthStore } from "@/store/useAuthStore";
-import { createTask, tasksQueryKey } from "./tasks";
+import { getFunctions } from "@/lib/firebase";
+import { createTask, tasksQueryKey, generateGoogleEventId } from "./tasks";
 import { clientsQueryKey } from "@/features/clients/api/clients";
+import { toast } from "@/components/ui/Toast";
 import type { TaskFormValues } from "../types/task";
+
+interface SyncResponse {
+  success: boolean;
+  googleEventId: string;
+  htmlLink: string | null;
+}
 
 /**
  * Mutation hook for creating a new task.
- * Invalidates both tasks and clients cache on success
- * (clients may update nextActionAt via Cloud Function).
+ * If syncToGoogleCalendar is enabled and a dueDate is set,
+ * it also syncs the task to Google Calendar.
  */
 export function useCreateTask() {
   const uid = useAuthStore((s) => s.user?.uid);
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (values: TaskFormValues) => {
+    mutationFn: async (values: TaskFormValues) => {
       if (!uid) throw new Error("Brak zalogowanego użytkownika");
-      return createTask({ ...values, uid });
+
+      // 1. Create task in Firestore
+      const taskId = await createTask({ ...values, uid });
+
+      // 2. Sync to Google Calendar if enabled + has due date
+      const shouldSync = values.syncToGoogleCalendar && values.dueDate !== "";
+
+      if (shouldSync) {
+        try {
+          const syncFn = httpsCallable<
+            {
+              taskId: string;
+              title: string;
+              description: string;
+              dueDate: string;
+              durationMin: number;
+              googleEventId: string;
+            },
+            SyncResponse
+          >(getFunctions(), "syncTaskToGoogleCalendar");
+
+          await syncFn({
+            taskId,
+            title: values.title,
+            description: values.description,
+            dueDate: values.dueDate,
+            durationMin: values.durationMin,
+            googleEventId: generateGoogleEventId(uid, taskId),
+          });
+
+          toast.success("Zadanie zapisane i dodane do kalendarza!");
+        } catch (err) {
+          console.error("Calendar sync failed:", err);
+          toast.error(
+            "Zadanie zapisane, ale synchronizacja z kalendarzem nie powiodła się."
+          );
+        }
+      } else {
+        toast.success("Zadanie zostało dodane");
+      }
+
+      return taskId;
     },
     onSuccess: () => {
       if (uid) {
