@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { useGoogleIntegration } from "../api/integrations";
 import { OAUTH_STATUS_LABELS } from "../types/integration";
-import { Calendar, Link2, Settings } from "lucide-react";
+import { Calendar, Link2, Loader2, Settings } from "lucide-react";
+import { useCalendarAuth } from "@/features/calendar/hooks/useCalendarAuth";
 
 type Tab = "general" | "integrations";
 
@@ -64,6 +65,7 @@ function GeneralTab() {
 
 function IntegrationsTab() {
   const { data: integration, isLoading } = useGoogleIntegration();
+  const { startOAuth, isConnecting } = useCalendarAuth();
 
   if (isLoading) {
     return (
@@ -134,12 +136,17 @@ function IntegrationsTab() {
             ) : (
               <Button
                 className="mt-4"
-                onClick={() => {
-                  console.log("Initiate OAuth");
-                }}
+                disabled={isConnecting}
+                onClick={startOAuth}
               >
-                <Calendar className="h-4 w-4" />
-                Połącz z Kalendarzem Google
+                {isConnecting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Calendar className="h-4 w-4" />
+                )}
+                {isConnecting
+                  ? "Łączenie z Google..."
+                  : "Połącz z Kalendarzem Google"}
               </Button>
             )}
           </div>
