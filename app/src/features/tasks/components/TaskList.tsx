@@ -246,7 +246,15 @@ function TaskActions({ task }: { task: TaskDTO }) {
 
 function SkeletonCard() {
   return (
-    <div className="rounded-xl border border-white/[0.08] bg-white/[0.04] p-4 animate-pulse">
+    <div
+      className="rounded-xl p-4 animate-pulse"
+      style={{
+        background: "rgba(30, 41, 59, 0.5)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        border: "1px solid rgba(255, 255, 255, 0.1)",
+      }}
+    >
       <div className="flex items-center gap-3">
         <div className="h-8 w-8 rounded bg-muted" />
         <div className="flex-1 space-y-2">
@@ -297,7 +305,16 @@ export function TaskList({ tasks, isLoading, tab }: TaskListProps) {
     };
 
     return (
-      <div className="flex flex-col items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-12 text-center">
+      <div
+        className="flex flex-col items-center gap-2 rounded-xl p-12 text-center"
+        style={{
+          background: "rgba(30, 41, 59, 0.5)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+          border: "1px solid rgba(255, 255, 255, 0.1)",
+          boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
+        }}
+      >
         <Calendar className="h-10 w-10 text-muted-foreground" />
         <p className="text-sm text-muted-foreground">{messages[tab]}</p>
       </div>
@@ -309,15 +326,20 @@ export function TaskList({ tasks, isLoading, tab }: TaskListProps) {
       {filtered.map((task) => (
         <div
           key={task.id}
-          className={`rounded-xl border p-4 transition-colors backdrop-blur-xl ${
-            task.status === "done"
-              ? "border-white/[0.04] bg-white/[0.02] opacity-60"
-              : task.dueDate &&
-                  isOverdue(task.dueDate) &&
-                  !isToday(task.dueDate)
-                ? "border-red-500/20 bg-white/[0.04]"
-                : "border-white/[0.08] bg-white/[0.04]"
+          className={`rounded-xl p-4 transition-colors ${
+            task.status === "done" ? "opacity-60" : ""
           }`}
+          style={{
+            background: task.status === "done"
+              ? "rgba(30, 41, 59, 0.3)"
+              : "rgba(30, 41, 59, 0.5)",
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
+            border: task.dueDate && isOverdue(task.dueDate) && !isToday(task.dueDate) && task.status !== "done"
+              ? "1px solid rgba(239, 68, 68, 0.3)"
+              : "1px solid rgba(255, 255, 255, 0.1)",
+            boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
+          }}
         >
           <div className="flex items-start gap-3">
             {/* Type emoji */}

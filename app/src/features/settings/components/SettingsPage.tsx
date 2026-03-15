@@ -14,6 +14,14 @@ const TABS: { key: Tab; label: string; icon: typeof Settings }[] = [
   { key: "integrations", label: "Integracje", icon: Link2 },
 ];
 
+const GLASS = {
+  background: "rgba(30, 41, 59, 0.5)",
+  backdropFilter: "blur(12px)",
+  WebkitBackdropFilter: "blur(12px)",
+  border: "1px solid rgba(255, 255, 255, 0.1)",
+  boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
+} as const;
+
 export function SettingsPage() {
   const [tab, setTab] = useState<Tab>("general");
 
@@ -22,7 +30,7 @@ export function SettingsPage() {
       <h1 className="text-2xl font-bold text-foreground">Ustawienia</h1>
 
       {/* Tabs */}
-      <div className="flex gap-1 rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-1">
+      <div className="flex gap-1 rounded-xl p-1" style={GLASS}>
         {TABS.map(({ key, label, icon: Icon }) => (
           <button
             key={key}
@@ -52,7 +60,7 @@ export function SettingsPage() {
 
 function GeneralTab() {
   return (
-    <div className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-6">
+    <div className="rounded-xl p-6" style={GLASS}>
       <h2 className="text-lg font-semibold text-foreground">Ogólne</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         Ustawienia ogólne będą dostępne w kolejnych wersjach aplikacji.
@@ -69,7 +77,7 @@ function IntegrationsTab() {
 
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-6 animate-pulse">
+      <div className="rounded-xl p-6 animate-pulse" style={GLASS}>
         <div className="flex items-center gap-4">
           <div className="h-12 w-12 rounded-lg bg-muted" />
           <div className="flex-1 space-y-2">
@@ -88,7 +96,7 @@ function IntegrationsTab() {
   return (
     <div className="flex flex-col gap-4">
       {/* Google Calendar Card */}
-      <div className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-6">
+      <div className="rounded-xl p-6" style={GLASS}>
         <div className="flex items-start gap-4">
           {/* Icon */}
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/20">
@@ -121,7 +129,13 @@ function IntegrationsTab() {
 
             {/* Calendar info or connect button */}
             {connected ? (
-              <div className="mt-4 rounded-md border border-white/[0.06] bg-white/[0.03] px-4 py-3">
+              <div
+                className="mt-4 rounded-md px-4 py-3"
+                style={{
+                  background: "rgba(30, 41, 59, 0.6)",
+                  border: "1px solid rgba(255, 255, 255, 0.06)",
+                }}
+              >
                 {calendarName ? (
                   <p className="text-sm text-foreground">
                     <span className="text-muted-foreground">Wybrany kalendarz: </span>
