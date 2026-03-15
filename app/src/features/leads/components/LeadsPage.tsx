@@ -122,7 +122,8 @@ function ConvertDialog({
 // ─── Page ───────────────────────────────────────────────────
 
 export function LeadsPage() {
-  const { data: leads, isLoading, isError } = useLeads();
+  const { data: allLeads, isLoading, isError } = useLeads();
+  const leads = allLeads?.filter((l) => l.status !== "converted");
   const createLead = useCreateLead();
   const [convertLead, setConvertLead] = useState<LeadDTO | null>(null);
 
