@@ -5,7 +5,11 @@ import {
   where,
   orderBy,
   getDocs,
+  getDoc,
   setDoc,
+  updateDoc,
+  deleteDoc,
+  increment,
   serverTimestamp,
   type FirestoreDataConverter,
   type QueryDocumentSnapshot,
@@ -213,4 +217,50 @@ export async function createTask(payload: CreateTaskPayload): Promise<string> {
   });
 
   return taskId;
+}
+
+// ─── Complete task ──────────────────────────────────────────
+
+export async function completeTask(uid: string, taskId: string): Promise<void> {
+  const db = getDb();
+  const ref = doc(db, "users", uid, "tasks", taskId);
+  await updateDoc(ref, {
+    status: "done",
+    completedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+// ─── Reschedule task ────────────────────────────────────────
+
+export interface ReschedulePayload {
+  uid: string;
+  taskId: string;
+  dueDate: string; // ISO string
+}
+
+export async function rescheduleTask(
+  payload: ReschedulePayload
+): Promise<TaskDTO | null> {
+  const db = getDb();
+  const ref = doc(db, "users", payload.uid, "tasks", payload.taskId);
+
+  await updateDoc(ref, {
+    dueAt: new Date(payload.dueDate),
+    syncRevision: increment(1),
+    syncState: "pending",
+    updatedAt: serverTimestamp(),
+  });
+
+  // Return updated task for sync
+  const snap = await getDoc(ref.withConverter(taskConverter));
+  return snap.exists() ? snap.data() : null;
+}
+
+// ─── Delete task ────────────────────────────────────────────
+
+export async function deleteTask(uid: string, taskId: string): Promise<void> {
+  const db = getDb();
+  const ref = doc(db, "users", uid, "tasks", taskId);
+  await deleteDoc(ref);
 }

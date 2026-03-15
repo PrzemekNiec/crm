@@ -1,12 +1,34 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import {
+  Dialog,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/Dialog";
+import { Select } from "@/components/ui/Select";
+import { Label } from "@/components/ui/Label";
 import {
   TASK_TYPE_LABELS,
   TASK_TYPE_EMOJI,
   type TaskType,
   type TaskDTO,
 } from "../types/task";
-import { Briefcase, Calendar, Clock, User } from "lucide-react";
+import { useCompleteTask, useRescheduleTask } from "../api/useUpdateTask";
+import { useDeleteTask } from "../api/useDeleteTask";
+import {
+  Briefcase,
+  Calendar,
+  Check,
+  Clock,
+  MoreVertical,
+  Pencil,
+  Trash2,
+  User,
+} from "lucide-react";
 
 type TabFilter = "today" | "overdue" | "all";
 
@@ -57,10 +79,184 @@ function syncBadge(state: string) {
     case "failed":
       return <Badge variant="destructive">Błąd synchronizacji</Badge>;
     case "reauth_required":
-      return <Badge variant="destructive">Wymagana ponowna autoryzacja</Badge>;
+      return (
+        <Badge variant="destructive">Wymagana ponowna autoryzacja</Badge>
+      );
     default:
       return null;
   }
+}
+
+// ─── Time options for reschedule ─────────────────────────────
+
+const TIME_OPTIONS = (() => {
+  const opts = [{ value: "", label: "Bez godziny" }];
+  for (let h = 6; h <= 21; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      const hh = String(h).padStart(2, "0");
+      const mm = String(m).padStart(2, "0");
+      opts.push({ value: `${hh}:${mm}`, label: `${hh}:${mm}` });
+    }
+  }
+  return opts;
+})();
+
+// ─── Reschedule Dialog ──────────────────────────────────────
+
+function RescheduleDialog({
+  task,
+  open,
+  onOpenChange,
+}: {
+  task: TaskDTO;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const reschedule = useRescheduleTask();
+
+  const currentDate = task.dueDate ? task.dueDate.split("T")[0] : "";
+  const currentTime = task.dueDate?.split("T")[1]?.slice(0, 5) ?? "";
+
+  const [date, setDate] = useState(currentDate);
+  const [time, setTime] = useState(currentTime);
+
+  const handleSave = () => {
+    if (!date) return;
+    const dueDate = time ? `${date}T${time}` : `${date}T09:00`;
+    reschedule.mutate(
+      {
+        taskId: task.id,
+        dueDate,
+        title: task.title,
+        description: task.description,
+        durationMin: task.durationMin,
+        googleEventId: task.googleEventId,
+        syncToGoogleCalendar: task.syncToGoogleCalendar,
+      },
+      {
+        onSuccess: () => onOpenChange(false),
+      }
+    );
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogHeader>
+        <DialogTitle>Przełóż zadanie</DialogTitle>
+        <DialogDescription>{task.title}</DialogDescription>
+      </DialogHeader>
+      <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="flex flex-col gap-1.5">
+            <Label>Data</Label>
+            <Input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Godzina</Label>
+            <Select
+              options={TIME_OPTIONS}
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Anuluj
+          </Button>
+          <Button
+            onClick={handleSave}
+            disabled={!date || reschedule.isPending}
+          >
+            {reschedule.isPending ? "Zapisywanie…" : "Zapisz"}
+          </Button>
+        </DialogFooter>
+      </div>
+    </Dialog>
+  );
+}
+
+// ─── Action Menu ─────────────────────────────────────────────
+
+function TaskActions({ task }: { task: TaskDTO }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const complete = useCompleteTask();
+  const deleteTask = useDeleteTask();
+
+  const isDone = task.status === "done" || task.status === "cancelled";
+
+  return (
+    <>
+      <div className="relative flex items-center gap-1">
+        {/* Complete button */}
+        {!isDone && (
+          <button
+            type="button"
+            onClick={() => complete.mutate(task.id)}
+            disabled={complete.isPending}
+            title="Oznacz jako wykonane"
+            className="flex h-6 w-6 items-center justify-center rounded-full border border-primary/40 text-primary/60 transition-all hover:bg-primary hover:text-primary-foreground cursor-pointer"
+          >
+            <Check className="h-3 w-3" />
+          </button>
+        )}
+
+        {/* More menu */}
+        <button
+          type="button"
+          onClick={() => setMenuOpen((v) => !v)}
+          className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer"
+        >
+          <MoreVertical className="h-4 w-4" />
+        </button>
+
+        {menuOpen && (
+          <div className="absolute right-0 top-full z-20 mt-1 w-44 rounded-lg border border-border bg-card p-1 shadow-lg">
+            {!isDone && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setRescheduleOpen(true);
+                }}
+                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                Przełóż
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpen(false);
+                deleteTask.mutate({
+                  taskId: task.id,
+                  googleEventId: task.googleEventId,
+                  syncToGoogleCalendar: task.syncToGoogleCalendar,
+                });
+              }}
+              disabled={deleteTask.isPending}
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-destructive hover:bg-destructive/10 cursor-pointer"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              {deleteTask.isPending ? "Usuwanie…" : "Usuń"}
+            </button>
+          </div>
+        )}
+      </div>
+
+      <RescheduleDialog
+        task={task}
+        open={rescheduleOpen}
+        onOpenChange={setRescheduleOpen}
+      />
+    </>
+  );
 }
 
 // ─── Skeleton ────────────────────────────────────────────────
@@ -85,8 +281,8 @@ export function TaskList({ tasks, isLoading, tab }: TaskListProps) {
   const filtered = useMemo(() => {
     if (!tasks) return [];
 
-    // Only show open tasks in today/overdue tabs
-    const open = tab === "all" ? tasks : tasks.filter((t) => t.status === "open");
+    const open =
+      tab === "all" ? tasks : tasks.filter((t) => t.status === "open");
 
     switch (tab) {
       case "today":
@@ -133,7 +329,9 @@ export function TaskList({ tasks, isLoading, tab }: TaskListProps) {
           className={`rounded-lg border bg-card p-4 transition-colors ${
             task.status === "done"
               ? "border-border/50 opacity-60"
-              : task.dueDate && isOverdue(task.dueDate) && !isToday(task.dueDate)
+              : task.dueDate &&
+                  isOverdue(task.dueDate) &&
+                  !isToday(task.dueDate)
                 ? "border-destructive/30"
                 : "border-border"
           }`}
@@ -195,6 +393,9 @@ export function TaskList({ tasks, isLoading, tab }: TaskListProps) {
                 {task.syncToGoogleCalendar && syncBadge(task.syncState)}
               </div>
             </div>
+
+            {/* Actions */}
+            <TaskActions task={task} />
           </div>
         </div>
       ))}

@@ -3,6 +3,7 @@ import { useTasks } from "@/features/tasks/api/useTasks";
 import { useLeads } from "@/features/leads/api/useLeads";
 import { useGoogleIntegration } from "../hooks/useGoogleIntegration";
 import { useCalendarAuth } from "@/features/calendar/hooks/useCalendarAuth";
+import { useCompleteTask } from "@/features/tasks/api/useUpdateTask";
 import {
   TASK_TYPE_EMOJI,
   TASK_TYPE_LABELS,
@@ -13,6 +14,7 @@ import {
   AlertTriangle,
   Briefcase,
   Calendar,
+  Check,
   Clock,
   Phone,
   User,
@@ -155,6 +157,7 @@ function StatsCards({ todayCount, overdueCount, newLeadsCount }: StatsProps) {
 // ─── Today Tasks Timeline ────────────────────────────────────
 
 function TodayTimeline({ tasks }: { tasks: TaskDTO[] }) {
+  const complete = useCompleteTask();
   if (tasks.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
@@ -218,6 +221,17 @@ function TodayTimeline({ tasks }: { tasks: TaskDTO[] }) {
               </span>
             </div>
           </div>
+
+          {/* Complete button */}
+          <button
+            type="button"
+            onClick={() => complete.mutate(task.id)}
+            disabled={complete.isPending}
+            title="Oznacz jako wykonane"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-primary/40 text-primary/60 transition-all hover:bg-primary hover:text-primary-foreground cursor-pointer"
+          >
+            <Check className="h-3.5 w-3.5" />
+          </button>
         </div>
       ))}
     </div>

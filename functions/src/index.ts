@@ -312,3 +312,49 @@ export const syncTaskToGoogleCalendar = onCall(
     return { success: true, googleEventId: data.googleEventId, htmlLink };
   }
 );
+
+// ─── deleteTaskFromGoogleCalendar ─────────────────────────────
+// Deletes a Google Calendar event by its event ID.
+
+export const deleteTaskFromGoogleCalendar = onCall(
+  { region: "europe-west1" },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Musisz być zalogowany.");
+    }
+    const uid = request.auth.uid;
+
+    const googleEventId = request.data?.googleEventId;
+    if (!googleEventId || typeof googleEventId !== "string") {
+      throw new HttpsError(
+        "invalid-argument",
+        "Brakuje googleEventId."
+      );
+    }
+
+    const { accessToken, calendarId } = await getValidAccessToken(uid);
+
+    const deleteRes = await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${googleEventId}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    // 204 = success, 404 = already gone, 410 = deleted — all fine
+    if (!deleteRes.ok && deleteRes.status !== 404 && deleteRes.status !== 410) {
+      const errBody = await deleteRes.text();
+      console.error("Calendar event delete failed:", errBody);
+      throw new HttpsError(
+        "internal",
+        "Nie udało się usunąć wydarzenia z kalendarza."
+      );
+    }
+
+    console.log(`Calendar event ${googleEventId} deleted for user ${uid}`);
+    return { success: true };
+  }
+);
