@@ -1,0 +1,39 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Deny all by default ──────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ─── User-scoped data ─────────────────────────────────────
+    // All user data lives under users/{uid}/...
+    // Only the authenticated owner can read/write their own data.
+
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+
+      // Clients subcollection
+      match /clients/{clientId} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+
+      // Tasks subcollection
+      match /tasks/{taskId} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+
+      // Leads subcollection
+      match /leads/{leadId} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+
+      // Google integrations (tokens, calendar settings)
+      match /integrations/{integrationId} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+    }
+  }
+}

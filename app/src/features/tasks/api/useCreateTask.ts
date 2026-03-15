@@ -52,7 +52,7 @@ export function useCreateTask() {
             description: values.description,
             dueDate: values.dueDate,
             durationMin: values.durationMin,
-            googleEventId: generateGoogleEventId(uid, taskId),
+            googleEventId: generateGoogleEventId(taskId),
           });
 
           toast.success("Zadanie zapisane i dodane do kalendarza!");

@@ -44,11 +44,12 @@ function toBase32Hex(input: string): string {
   return result;
 }
 
-export function generateGoogleEventId(uid: string, taskId: string): string {
-  const raw = `${uid}:${taskId}`;
-  const encoded = toBase32Hex(raw);
-  // Ensure minimum 5 chars (always will be for realistic UIDs)
-  return encoded.length >= 5 ? encoded : encoded.padEnd(5, "0");
+export function generateGoogleEventId(taskId: string): string {
+  const prefix = "crmtask";
+  const encoded = toBase32Hex(taskId);
+  const eventId = prefix + encoded;
+  // Ensure minimum 5 chars (always will be for realistic task IDs)
+  return eventId.length >= 5 ? eventId : eventId.padEnd(5, "0");
 }
 
 // ─── Timestamp helper ────────────────────────────────────────
@@ -185,7 +186,7 @@ export async function createTask(payload: CreateTaskPayload): Promise<string> {
   // Pre-generate document ID so we can derive googleEventId
   const taskRef = doc(colRef);
   const taskId = taskRef.id;
-  const googleEventId = generateGoogleEventId(uid, taskId);
+  const googleEventId = generateGoogleEventId(taskId);
 
   const hasDueDate = dueDate !== "";
   const shouldSync = formValues.syncToGoogleCalendar && hasDueDate;
@@ -197,7 +198,7 @@ export async function createTask(payload: CreateTaskPayload): Promise<string> {
     completedAt: null,
     resultNote: "",
     syncToGoogleCalendar: formValues.syncToGoogleCalendar,
-    syncRevision: 1,
+    syncRevision: 0,
     lastProcessedSyncRevision: null,
     syncState: shouldSync ? "pending" : "not_required",
     syncErrorCode: null,

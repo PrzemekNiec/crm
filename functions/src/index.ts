@@ -212,15 +212,15 @@ export const syncTaskToGoogleCalendar = onCall(
       },
     };
 
-    // 5. Upsert event (import = insert with custom ID, or update if exists)
+    // 5. Upsert event (try PATCH first, if 404 then import with custom ID)
     let htmlLink: string | null = null;
 
     try {
-      // Try insert first (with custom event ID)
-      const insertRes = await fetch(
-        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/import`,
+      // Try PATCH first (most syncs after initial create will be updates)
+      const patchRes = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${data.googleEventId}`,
         {
-          method: "POST",
+          method: "PATCH",
           headers: {
             Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/json",
@@ -229,15 +229,15 @@ export const syncTaskToGoogleCalendar = onCall(
         }
       );
 
-      if (insertRes.ok) {
-        const body = await insertRes.json();
+      if (patchRes.ok) {
+        const body = await patchRes.json();
         htmlLink = body.htmlLink ?? null;
-      } else if (insertRes.status === 409) {
-        // Event already exists — update it
-        const updateRes = await fetch(
-          `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${data.googleEventId}`,
+      } else if (patchRes.status === 404) {
+        // Event doesn't exist yet — insert with custom ID
+        const insertRes = await fetch(
+          `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/import`,
           {
-            method: "PUT",
+            method: "POST",
             headers: {
               Authorization: `Bearer ${accessToken}`,
               "Content-Type": "application/json",
@@ -246,17 +246,17 @@ export const syncTaskToGoogleCalendar = onCall(
           }
         );
 
-        if (!updateRes.ok) {
-          const errBody = await updateRes.text();
-          console.error("Calendar update failed:", errBody);
-          throw new Error(`Calendar API update failed: ${updateRes.status}`);
+        if (!insertRes.ok) {
+          const errBody = await insertRes.text();
+          console.error("Calendar insert failed:", errBody);
+          throw new Error(`Calendar API insert failed: ${insertRes.status}`);
         }
-        const body = await updateRes.json();
+        const body = await insertRes.json();
         htmlLink = body.htmlLink ?? null;
       } else {
-        const errBody = await insertRes.text();
-        console.error("Calendar insert failed:", errBody);
-        throw new Error(`Calendar API insert failed: ${insertRes.status}`);
+        const errBody = await patchRes.text();
+        console.error("Calendar patch failed:", errBody);
+        throw new Error(`Calendar API patch failed: ${patchRes.status}`);
       }
     } catch (err: unknown) {
       const message =
@@ -283,21 +283,28 @@ export const syncTaskToGoogleCalendar = onCall(
     }
 
     // 6. Update task document with sync result
-    await db
+    //    Read current syncRevision so we mark it as processed (anti-loop)
+    const taskRef = db
       .collection("users")
       .doc(uid)
       .collection("tasks")
-      .doc(data.taskId)
-      .update({
-        syncState: "synced",
-        googleEventHtmlLink: htmlLink,
-        lastSyncedCalendarId: calendarId,
-        lastSyncedAt: FieldValue.serverTimestamp(),
-        lastProcessedSyncRevision: 1,
-        syncErrorCode: null,
-        syncErrorMessage: null,
-        updatedAt: FieldValue.serverTimestamp(),
-      });
+      .doc(data.taskId);
+
+    const taskSnap = await taskRef.get();
+    const currentSyncRevision = taskSnap.exists
+      ? (taskSnap.data()?.syncRevision ?? 0)
+      : 0;
+
+    await taskRef.update({
+      syncState: "synced",
+      googleEventHtmlLink: htmlLink,
+      lastSyncedCalendarId: calendarId,
+      lastSyncedAt: FieldValue.serverTimestamp(),
+      lastProcessedSyncRevision: currentSyncRevision,
+      syncErrorCode: null,
+      syncErrorMessage: null,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
 
     console.log(`Task ${data.taskId} synced to calendar for user ${uid}`);
 
