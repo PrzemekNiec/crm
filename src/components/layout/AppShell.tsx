@@ -43,7 +43,7 @@ function MobileTopbar() {
       .toUpperCase() ?? "?";
 
   return (
-    <header className="relative flex h-14 items-center justify-between border-b border-border bg-card px-4 md:hidden">
+    <header className="relative flex h-14 items-center justify-between border-b border-white/[0.06] bg-white/[0.04] backdrop-blur-xl px-4 md:hidden">
       <div className="flex items-center gap-2">
         <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-[10px] font-bold text-primary-foreground">
           CRM
@@ -109,7 +109,7 @@ function MobileTopbar() {
 
 function MobileBottomNav() {
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 flex h-16 items-stretch border-t border-border bg-card md:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-40 flex h-16 items-stretch border-t border-white/[0.06] bg-white/[0.04] backdrop-blur-xl md:hidden">
       {NAV_ITEMS.map((item) => (
         <NavLink
           key={item.to}
@@ -136,7 +136,7 @@ function MobileBottomNav() {
 
 export function AppShell() {
   return (
-    <div className="flex min-h-svh flex-col bg-background">
+    <div className="flex min-h-svh flex-col">
       <OfflineBanner />
 
       <div className="flex flex-1">
@@ -147,7 +147,7 @@ export function AppShell() {
         <div className="flex flex-1 flex-col">
           <MobileTopbar />
 
-          <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
+          <main className="flex-1 overflow-y-auto pb-20 md:pb-0 bg-white/[0.02] backdrop-blur-sm">
             <Outlet />
           </main>
         </div>

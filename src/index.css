@@ -1,27 +1,44 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: #0f172a;
-  --color-foreground: #f8fafc;
-  --color-card: #1e293b;
-  --color-card-foreground: #f8fafc;
-  --color-primary: #3b82f6;
-  --color-primary-foreground: #ffffff;
-  --color-secondary: #334155;
-  --color-secondary-foreground: #f8fafc;
-  --color-muted: #1e293b;
-  --color-muted-foreground: #94a3b8;
-  --color-accent: #334155;
-  --color-accent-foreground: #f8fafc;
+  /* Główne tło (Matowy grafit — Pomocnik Kasi) */
+  --color-background: #1a1d21;
+  --color-foreground: #f0f4f8;
+
+  /* Panele i Karty (Zimna szarość) */
+  --color-card: #23272d;
+  --color-card-foreground: #f0f4f8;
+
+  /* Główne Akcenty (Sage Green / Mięta — Pomocnik Kasi) */
+  --color-primary: #c9956b;
+  --color-primary-foreground: #1a1d21;
+
+  /* Elementy drugorzędne */
+  --color-secondary: #2a2f36;
+  --color-secondary-foreground: #f0f4f8;
+
+  /* Muted */
+  --color-muted: #23272d;
+  --color-muted-foreground: #8a919b;
+
+  /* Accent */
+  --color-accent: #2a2f36;
+  --color-accent-foreground: #f0f4f8;
+
+  /* Destructive */
   --color-destructive: #ef4444;
   --color-destructive-foreground: #ffffff;
-  --color-border: #334155;
-  --color-input: #334155;
-  --color-ring: #3b82f6;
+
+  /* Borders i Inputs */
+  --color-border: #31373f;
+  --color-input: #31373f;
+  --color-ring: #c9956b;
+
+  /* Warning & Success */
   --color-warning: #f59e0b;
-  --color-warning-foreground: #0f172a;
+  --color-warning-foreground: #1a1d21;
   --color-success: #22c55e;
-  --color-success-foreground: #0f172a;
+  --color-success-foreground: #1a1d21;
   --radius-sm: 0.25rem;
   --radius-md: 0.375rem;
   --radius-lg: 0.5rem;
@@ -29,7 +46,8 @@
 
 body {
   margin: 0;
-  background-color: var(--color-background);
+  background: linear-gradient(135deg, #1a1e28 0%, #2e1c1e 25%, #4a2e18 50%, #2a3035 75%, #1a2e2e 100%);
+  min-height: 100svh;
   color: var(--color-foreground);
   font-family:
     "Inter",
