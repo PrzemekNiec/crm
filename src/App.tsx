@@ -3,7 +3,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useAuthListener } from "@/hooks/useAuthListener";
 import { AuthGuard } from "@/components/AuthGuard";
 import { AppShell } from "@/components/layout/AppShell";
+import { ToastContainer } from "@/components/ui/Toast";
 import { DashboardPage } from "@/features/dashboard/components/DashboardPage";
+import { ClientsPage } from "@/features/clients/components/ClientsPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,9 +24,8 @@ function AppInner() {
       <Routes>
         <Route element={<AppShell />}>
           <Route index element={<DashboardPage />} />
-          {/* Phase 1 routes:
-            <Route path="clients" element={<ClientsPage />} />
-            <Route path="clients/new" element={<ClientFormPage />} />
+          <Route path="clients" element={<ClientsPage />} />
+          {/* Phase 1 — remaining routes:
             <Route path="clients/:id" element={<ClientDetailPage />} />
             <Route path="clients/:id/edit" element={<ClientFormPage />} />
             <Route path="tasks" element={<TasksPage />} />
@@ -41,6 +42,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AppInner />
+        <ToastContainer />
       </BrowserRouter>
     </QueryClientProvider>
   );
