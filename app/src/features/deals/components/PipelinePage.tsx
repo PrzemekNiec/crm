@@ -8,6 +8,7 @@ import {
   useUpdateDealTitle,
   useUpdateDealNotes,
   useToggleCPRegistration,
+  useUpdateDealCommission,
   useArchiveDeal,
 } from "../api/useDeals";
 import { dealsQueryKey } from "../api/deals";
@@ -365,36 +366,11 @@ function ArchivedDealsTable({ deals }: { deals: DealDTO[] }) {
                     </thead>
                     <tbody>
                       {monthDeals.map((d) => (
-                        <tr
+                        <ArchiveRow
                           key={d.id}
-                          className="border-t border-white/[0.05] hover:bg-white/[0.03] transition-colors"
-                        >
-                          <td className="px-4 py-2.5 text-foreground font-medium">
-                            {d.clientName ?? "—"}
-                          </td>
-                          <td className="px-4 py-2.5 text-foreground">
-                            {d.bank ?? "—"}
-                          </td>
-                          <td className="px-4 py-2.5 text-foreground text-right">
-                            {formatCurrency(d.value)}
-                          </td>
-                          <td className="px-4 py-2.5 text-foreground text-right">
-                            {d.commissionRate != null
-                              ? `${d.commissionRate}%`
-                              : "—"}
-                          </td>
-                          <td className="px-4 py-2.5 text-primary font-semibold text-right">
-                            {d.commissionValue != null
-                              ? formatCurrency(d.commissionValue)
-                              : "—"}
-                          </td>
-                          <td className="px-4 py-2.5 text-muted-foreground text-xs">
-                            {clientSourceMap.get(d.clientId) ?? "—"}
-                          </td>
-                          <td className="px-4 py-2.5 text-muted-foreground text-xs max-w-[200px] truncate">
-                            {d.notes || "—"}
-                          </td>
-                        </tr>
+                          deal={d}
+                          clientSource={clientSourceMap.get(d.clientId) ?? "—"}
+                        />
                       ))}
                     </tbody>
                   </table>
@@ -405,6 +381,121 @@ function ArchivedDealsTable({ deals }: { deals: DealDTO[] }) {
         </div>
       )}
     </>
+  );
+}
+
+// ─── Archive Row (inline commission editing) ────────────────
+
+function ArchiveRow({
+  deal,
+  clientSource,
+}: {
+  deal: DealDTO;
+  clientSource: string;
+}) {
+  const updateCommission = useUpdateDealCommission();
+  const uid = useAuthStore((s) => s.user?.uid);
+  const qc = useQueryClient();
+
+  const [editing, setEditing] = useState(false);
+  const [rate, setRate] = useState(deal.commissionRate ?? 0);
+  const [val, setVal] = useState(deal.commissionValue ?? 0);
+  const rateRef = useRef<HTMLInputElement>(null);
+
+  const startEdit = () => {
+    setRate(deal.commissionRate ?? 0);
+    setVal(deal.commissionValue ?? 0);
+    setEditing(true);
+    setTimeout(() => rateRef.current?.focus(), 0);
+  };
+
+  const save = () => {
+    if (rate !== deal.commissionRate || val !== deal.commissionValue) {
+      if (uid) {
+        qc.setQueryData<DealDTO[]>(dealsQueryKey(uid), (old) =>
+          old?.map((d) =>
+            d.id === deal.id
+              ? { ...d, commissionRate: rate, commissionValue: val }
+              : d
+          )
+        );
+      }
+      updateCommission.mutate({ dealId: deal.id, rate, value: val });
+    }
+    setEditing(false);
+  };
+
+  // Auto-calc commission when rate changes during edit
+  const handleRateChange = (newRate: number) => {
+    setRate(newRate);
+    setVal(Math.round(deal.value * newRate / 100));
+  };
+
+  return (
+    <tr className="border-t border-white/[0.05] hover:bg-white/[0.03] transition-colors">
+      <td className="px-4 py-2.5 text-foreground font-medium">
+        {deal.clientName ?? "—"}
+      </td>
+      <td className="px-4 py-2.5 text-foreground">
+        {deal.bank ?? "—"}
+      </td>
+      <td className="px-4 py-2.5 text-foreground text-right">
+        {formatCurrency(deal.value)}
+      </td>
+      <td className="px-4 py-2.5 text-right">
+        {editing ? (
+          <input
+            ref={rateRef}
+            type="number"
+            step="0.01"
+            value={rate}
+            onChange={(e) => handleRateChange(parseFloat(e.target.value) || 0)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") save();
+              if (e.key === "Escape") setEditing(false);
+            }}
+            onBlur={save}
+            className="w-20 rounded bg-white/10 border border-white/20 px-1.5 py-0.5 text-xs text-foreground text-right outline-none focus:ring-1 focus:ring-primary/50"
+          />
+        ) : (
+          <span
+            className="text-foreground cursor-pointer group inline-flex items-center gap-1 hover:text-primary transition-colors"
+            onClick={startEdit}
+          >
+            {deal.commissionRate != null ? `${deal.commissionRate}%` : "—"}
+            <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </span>
+        )}
+      </td>
+      <td className="px-4 py-2.5 text-right">
+        {editing ? (
+          <input
+            type="number"
+            value={val}
+            onChange={(e) => setVal(parseFloat(e.target.value) || 0)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") save();
+              if (e.key === "Escape") setEditing(false);
+            }}
+            onBlur={save}
+            className="w-24 rounded bg-white/10 border border-white/20 px-1.5 py-0.5 text-xs text-foreground text-right outline-none focus:ring-1 focus:ring-primary/50"
+          />
+        ) : (
+          <span
+            className="text-primary font-semibold cursor-pointer hover:text-primary/80 transition-colors"
+            onClick={startEdit}
+          >
+            {deal.commissionValue != null ? formatCurrency(deal.commissionValue) : "—"}
+          </span>
+        )}
+      </td>
+      <td className="px-4 py-2.5 text-muted-foreground text-xs">
+        {clientSource}
+      </td>
+      <td className="px-4 py-2.5 text-muted-foreground text-xs max-w-[200px] truncate">
+        {deal.notes || "—"}
+      </td>
+    </tr>
   );
 }
 

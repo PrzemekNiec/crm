@@ -188,6 +188,23 @@ export async function toggleCPRegistration(
   });
 }
 
+// ─── Update deal commission ─────────────────────────────────
+
+export async function updateDealCommission(
+  uid: string,
+  dealId: string,
+  rate: number,
+  value: number
+): Promise<void> {
+  const db = getDb();
+  const ref = doc(db, "users", uid, "deals", dealId);
+  await updateDoc(ref, {
+    commissionRate: rate,
+    commissionValue: value,
+    updatedAt: serverTimestamp(),
+  });
+}
+
 // ─── Archive deal (settlement) ──────────────────────────────
 
 export async function archiveDeal(

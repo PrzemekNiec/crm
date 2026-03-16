@@ -8,6 +8,7 @@ import {
   updateDealTitle,
   updateDealNotes,
   toggleCPRegistration,
+  updateDealCommission,
   archiveDeal,
   dealsQueryKey,
 } from "./deals";
@@ -134,6 +135,34 @@ export function useToggleCPRegistration() {
     },
     onError: () => {
       toast.error("Nie udało się zaktualizować rejestracji CP");
+    },
+  });
+}
+
+// ─── Update deal commission ─────────────────────────────────
+
+export function useUpdateDealCommission() {
+  const uid = useAuthStore((s) => s.user?.uid);
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      dealId,
+      rate,
+      value,
+    }: {
+      dealId: string;
+      rate: number;
+      value: number;
+    }) => {
+      if (!uid) throw new Error("Brak zalogowanego użytkownika");
+      return updateDealCommission(uid, dealId, rate, value);
+    },
+    onSuccess: () => {
+      if (uid) qc.invalidateQueries({ queryKey: dealsQueryKey(uid) });
+    },
+    onError: () => {
+      toast.error("Nie udało się zaktualizować prowizji");
     },
   });
 }
