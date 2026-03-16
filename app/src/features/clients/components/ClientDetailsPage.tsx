@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -13,11 +13,22 @@ import {
   Clock,
   User,
   Check,
+  Upload,
+  Image,
+  File,
+  Trash2,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { toast } from "@/components/ui/Toast";
 import { useClient } from "../api/useClient";
 import { useNotes, useCreateNote } from "../api/useNotes";
+import {
+  useClientDocuments,
+  useUploadDocument,
+  useDeleteDocument,
+} from "../api/useDocuments";
 import { useTasks } from "@/features/tasks/api/useTasks";
 import {
   STAGE_LABELS,
@@ -294,21 +305,215 @@ function TasksTab({ clientId }: { clientId: string }) {
   );
 }
 
-// ─── Documents Tab (placeholder) ─────────────────────────────
+// ─── Documents Tab ───────────────────────────────────────────
 
-function DocumentsTab() {
+function fileIcon(type: string) {
+  if (type.startsWith("image/")) return <Image className="h-5 w-5 text-blue-400" />;
+  if (type === "application/pdf") return <FileText className="h-5 w-5 text-red-400" />;
+  return <File className="h-5 w-5 text-muted-foreground" />;
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function DocumentsTab({ clientId }: { clientId: string }) {
+  const { data: documents, isLoading } = useClientDocuments(clientId);
+  const upload = useUploadDocument(clientId);
+  const remove = useDeleteDocument(clientId);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+
+  const handleFiles = useCallback(
+    (files: FileList | File[]) => {
+      const fileArray = Array.from(files);
+      fileArray.forEach((file) => {
+        setUploadProgress(0);
+        upload.mutate(
+          {
+            file,
+            onProgress: (p) => setUploadProgress(Math.round(p)),
+          },
+          {
+            onSuccess: () => {
+              setUploadProgress(null);
+              toast.success(`Plik "${file.name}" został wgrany.`);
+            },
+            onError: () => {
+              setUploadProgress(null);
+              toast.error(`Nie udało się wgrać pliku "${file.name}".`);
+            },
+          }
+        );
+      });
+    },
+    [upload]
+  );
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+      if (e.dataTransfer.files.length > 0) {
+        handleFiles(e.dataTransfer.files);
+      }
+    },
+    [handleFiles]
+  );
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  }, []);
+
+  const handleDelete = (documentId: string, storagePath: string, name: string) => {
+    remove.mutate(
+      { documentId, storagePath },
+      {
+        onSuccess: () => toast.success(`Plik "${name}" został usunięty.`),
+        onError: () => toast.error(`Nie udało się usunąć pliku "${name}".`),
+      }
+    );
+  };
+
   return (
-    <div
-      className="flex flex-col items-center gap-3 rounded-xl p-12 text-center"
-      style={glassStyle}
-    >
-      <FolderOpen className="h-12 w-12 text-muted-foreground" />
-      <p className="text-lg font-medium text-foreground">
-        Baza dokumentów
-      </p>
-      <p className="text-sm text-muted-foreground">
-        Przechowywanie dokumentów klienta będzie dostępne wkrótce.
-      </p>
+    <div className="flex flex-col gap-4">
+      {/* Drop zone */}
+      <div
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onClick={() => fileInputRef.current?.click()}
+        className={cn(
+          "flex flex-col items-center gap-3 rounded-xl p-8 text-center cursor-pointer transition-all border-2 border-dashed",
+          isDragging
+            ? "border-primary bg-primary/10"
+            : "border-white/[0.12] hover:border-primary/50 hover:bg-white/[0.02]"
+        )}
+        style={{
+          background: isDragging ? "rgba(201, 149, 107, 0.08)" : "rgba(30, 41, 59, 0.5)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+          boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
+        }}
+      >
+        <Upload className={cn("h-8 w-8", isDragging ? "text-primary" : "text-muted-foreground")} />
+        <div>
+          <p className="text-sm font-medium text-foreground">
+            {isDragging ? "Upuść plik tutaj" : "Przeciągnij plik lub kliknij, aby wybrać"}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            PDF, zdjęcia, dokumenty
+          </p>
+        </div>
+        {uploadProgress !== null && (
+          <div className="w-full max-w-xs">
+            <div className="h-2 rounded-full bg-white/[0.08] overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${uploadProgress}%`,
+                  background: "linear-gradient(90deg, #c9956b, #a97c50)",
+                }}
+              />
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">{uploadProgress}%</p>
+          </div>
+        )}
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            if (e.target.files && e.target.files.length > 0) {
+              handleFiles(e.target.files);
+              e.target.value = "";
+            }
+          }}
+        />
+      </div>
+
+      {/* Documents list */}
+      {isLoading ? (
+        <div className="flex flex-col gap-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="rounded-xl p-4 animate-pulse" style={glassStyle}>
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded bg-muted" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-48 rounded bg-muted" />
+                  <div className="h-3 w-24 rounded bg-muted" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : !documents || documents.length === 0 ? (
+        <div
+          className="flex flex-col items-center gap-2 rounded-xl p-12 text-center"
+          style={glassStyle}
+        >
+          <FolderOpen className="h-10 w-10 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">
+            Brak dokumentów. Wgraj pierwszy plik powyżej.
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {documents.map((doc) => (
+            <div key={doc.id} className="rounded-xl p-4" style={glassStyle}>
+              <div className="flex items-center gap-3">
+                {/* Icon */}
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/[0.06]">
+                  {fileIcon(doc.type)}
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">
+                    {doc.name}
+                  </p>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <span>{formatFileSize(doc.size)}</span>
+                    {doc.uploadedAt && <span>{formatDate(doc.uploadedAt)}</span>}
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-1.5">
+                  <a
+                    href={doc.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Otwórz"
+                    className="flex h-7 w-7 items-center justify-center rounded-full border border-primary/40 text-primary transition-all hover:bg-primary hover:text-white cursor-pointer"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(doc.id, doc.storagePath, doc.name)}
+                    disabled={remove.isPending}
+                    title="Usuń plik"
+                    className="flex h-7 w-7 items-center justify-center rounded-full border border-red-500/40 text-red-500 transition-all hover:bg-red-500 hover:text-white cursor-pointer"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -471,7 +676,7 @@ export function ClientDetailsPage() {
       {/* Tab content */}
       {tab === "notes" && id && <NotesTab clientId={id} />}
       {tab === "tasks" && id && <TasksTab clientId={id} />}
-      {tab === "documents" && <DocumentsTab />}
+      {tab === "documents" && id && <DocumentsTab clientId={id} />}
     </div>
   );
 }

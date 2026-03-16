@@ -15,6 +15,10 @@ import {
   getFunctions as _getFunctions,
   type Functions,
 } from "firebase/functions";
+import {
+  getStorage as _getStorage,
+  type FirebaseStorage,
+} from "firebase/storage";
 
 // ─── Config ──────────────────────────────────────────────────
 // Values are safe to expose in client-side code — Firestore
@@ -33,6 +37,7 @@ let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
 let db: Firestore | null = null;
 let functions: Functions | null = null;
+let storage: FirebaseStorage | null = null;
 
 /**
  * Firebase App — initialized once, lazily.
@@ -64,6 +69,16 @@ export function getFunctions(): Functions {
     functions = _getFunctions(getFirebaseApp(), "europe-west1");
   }
   return functions;
+}
+
+/**
+ * Firebase Storage — for client document uploads.
+ */
+export function getFirebaseStorage(): FirebaseStorage {
+  if (!storage) {
+    storage = _getStorage(getFirebaseApp());
+  }
+  return storage;
 }
 
 // ─── Firestore with dynamic cache ───────────────────────────
