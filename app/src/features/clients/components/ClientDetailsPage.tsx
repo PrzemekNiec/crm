@@ -29,6 +29,7 @@ import {
   useUploadDocument,
   useDeleteDocument,
 } from "../api/useDocuments";
+import { EditClientDialog } from "./EditClientDialog";
 import { useTasks } from "@/features/tasks/api/useTasks";
 import {
   STAGE_LABELS,
@@ -342,8 +343,9 @@ function DocumentsTab({ clientId }: { clientId: string }) {
               setUploadProgress(null);
               toast.success(`Plik "${file.name}" został wgrany.`);
             },
-            onError: () => {
+            onError: (err) => {
               setUploadProgress(null);
+              console.error("[Documents] Upload mutation error:", err);
               toast.error(`Nie udało się wgrać pliku "${file.name}".`);
             },
           }
@@ -525,6 +527,7 @@ export function ClientDetailsPage() {
   const navigate = useNavigate();
   const { data: client, isLoading, isError } = useClient(id);
   const [tab, setTab] = useState<Tab>("notes");
+  const [editOpen, setEditOpen] = useState(false);
 
   // ─── Loading ─────────────────────────────────────────────
   if (isLoading) {
@@ -639,9 +642,7 @@ export function ClientDetailsPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                // TODO: Edit client dialog
-              }}
+              onClick={() => setEditOpen(true)}
             >
               <Pencil className="h-4 w-4" />
               <span className="hidden sm:inline">Edytuj</span>
@@ -677,6 +678,13 @@ export function ClientDetailsPage() {
       {tab === "notes" && id && <NotesTab clientId={id} />}
       {tab === "tasks" && id && <TasksTab clientId={id} />}
       {tab === "documents" && id && <DocumentsTab clientId={id} />}
+
+      {/* Edit client dialog */}
+      <EditClientDialog
+        client={client}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+      />
     </div>
   );
 }

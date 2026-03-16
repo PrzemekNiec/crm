@@ -7,6 +7,7 @@ import {
   getDocs,
   getDoc,
   addDoc,
+  updateDoc,
   serverTimestamp,
   type FirestoreDataConverter,
   type QueryDocumentSnapshot,
@@ -187,4 +188,18 @@ export async function createClient(
   });
 
   return docRef.id;
+}
+
+/** Update an existing client document. */
+export async function updateClient(
+  uid: string,
+  clientId: string,
+  values: Partial<ClientFormValues>
+): Promise<void> {
+  const db = getDb();
+  const ref = doc(db, "users", uid, "clients", clientId);
+  await updateDoc(ref, {
+    ...values,
+    updatedAt: serverTimestamp(),
+  });
 }
