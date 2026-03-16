@@ -1,6 +1,8 @@
+import { useMemo } from "react";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useTasks } from "@/features/tasks/api/useTasks";
 import { useLeads } from "@/features/leads/api/useLeads";
+import { useDeals } from "@/features/deals/api/useDeals";
 import { useGoogleIntegration } from "../hooks/useGoogleIntegration";
 import { useCalendarAuth } from "@/features/calendar/hooks/useCalendarAuth";
 import { useCompleteTask, useRescheduleTask } from "@/features/tasks/api/useUpdateTask";
@@ -118,6 +120,64 @@ function ReauthBanner() {
 }
 
 // ─── Stats Cards ─────────────────────────────────────────────
+
+// ─── Financial Widgets ───────────────────────────────────────
+
+function FinancialWidgets({
+  pipelineValue,
+  closedValue,
+  activeCount,
+}: {
+  pipelineValue: number;
+  closedValue: number;
+  activeCount: number;
+}) {
+  return (
+    <div className="grid gap-4 sm:grid-cols-3">
+      <div className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-5">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/20">
+            <span className="text-lg">💰</span>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Aktywny lejek</p>
+            <p className="text-xl font-bold text-primary">
+              {formatCurrency(pipelineValue)}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-5">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/20">
+            <span className="text-lg">🏆</span>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Zamknięte sukcesem</p>
+            <p className="text-xl font-bold text-emerald-400">
+              {formatCurrency(closedValue)}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-5">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/20">
+            <span className="text-lg">📂</span>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Aktywne sprawy</p>
+            <p className="text-2xl font-bold text-blue-400">{activeCount}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Task Stats ──────────────────────────────────────────────
 
 interface StatsProps {
   todayCount: number;
@@ -449,6 +509,17 @@ export function DashboardPage() {
   const profile = useAuthStore((s) => s.profile);
   const { data: tasks = [], isLoading: tasksLoading } = useTasks();
   const { data: leads = [], isLoading: leadsLoading } = useLeads();
+  const { data: deals = [] } = useDeals();
+
+  const financialStats = useMemo(() => {
+    const active = deals.filter((d) => d.stage !== "success");
+    const closed = deals.filter((d) => d.stage === "success");
+    return {
+      pipelineValue: active.reduce((sum, d) => sum + d.value, 0),
+      closedValue: closed.reduce((sum, d) => sum + d.value, 0),
+      activeCount: active.length,
+    };
+  }, [deals]);
 
   const today = new Date();
 
@@ -488,7 +559,14 @@ export function DashboardPage() {
       {/* Reauth Banner */}
       <ReauthBanner />
 
-      {/* Stats */}
+      {/* Financial Widgets */}
+      <FinancialWidgets
+        pipelineValue={financialStats.pipelineValue}
+        closedValue={financialStats.closedValue}
+        activeCount={financialStats.activeCount}
+      />
+
+      {/* Task Stats */}
       <StatsCards
         todayCount={todayTasks.length}
         overdueCount={overdueTasks.length}
