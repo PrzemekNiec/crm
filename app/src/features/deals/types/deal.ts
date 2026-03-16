@@ -49,6 +49,18 @@ export const dealFormSchema = z.object({
 
 export type DealFormValues = z.infer<typeof dealFormSchema>;
 
+// ─── Settlement schema ────────────────────────────────────────
+
+export const settleDealSchema = z.object({
+  bank: z.string().min(1, "Podaj bank"),
+  commissionRate: z.number().min(0, "Stawka musi być >= 0"),
+  commissionValue: z.number().min(0, "Prowizja musi być >= 0"),
+  payoutDate: z.string().min(1, "Wybierz miesiąc wypłaty"),
+  notes: z.string().optional(),
+});
+
+export type SettleDealValues = z.infer<typeof settleDealSchema>;
+
 // ─── DTO (from Firestore) ────────────────────────────────────
 
 export interface DealDTO {
@@ -58,7 +70,14 @@ export interface DealDTO {
   title: string;
   value: number;
   stage: DealStage;
+  notes?: string;
   isRegisteredInCP?: boolean;
   history: DealHistoryEntry[];
   createdAt: string; // ISO
+  // Settlement fields
+  isArchived?: boolean;
+  bank?: string;
+  commissionRate?: number;
+  commissionValue?: number;
+  payoutDate?: string; // YYYY-MM
 }

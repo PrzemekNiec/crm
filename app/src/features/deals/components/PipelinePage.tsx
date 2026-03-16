@@ -8,9 +8,11 @@ import {
   useUpdateDealTitle,
   useUpdateDealNotes,
   useToggleCPRegistration,
+  useArchiveDeal,
 } from "../api/useDeals";
 import { dealsQueryKey } from "../api/deals";
 import { useClients } from "@/features/clients/api/useClients";
+import { CLIENT_SOURCE_LABELS, type ClientSource } from "@/features/clients/types/client";
 import {
   DEAL_STAGES,
   DEAL_STAGE_LABELS,
@@ -18,7 +20,9 @@ import {
   type DealDTO,
   type DealStage,
   type DealFormValues,
+  type SettleDealValues,
   dealFormSchema,
+  settleDealSchema,
 } from "../types/deal";
 import { Dialog } from "@/components/ui/Dialog";
 import { Button } from "@/components/ui/Button";
@@ -33,6 +37,7 @@ import {
   ChevronRight,
   Pencil,
   Check,
+  Archive,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useForm } from "react-hook-form";
@@ -91,6 +96,7 @@ export function PipelinePage() {
   const { data: deals = [], isLoading } = useDeals();
   const [addOpen, setAddOpen] = useState(false);
   const [historyDeal, setHistoryDeal] = useState<DealDTO | null>(null);
+  const [settleDeal, setSettleDeal] = useState<DealDTO | null>(null);
 
   const dealsByStage = useMemo(() => {
     const grouped: Record<DealStage, DealDTO[]> = {
@@ -102,7 +108,7 @@ export function PipelinePage() {
       wyplata: [],
     };
     for (const deal of deals) {
-      if (grouped[deal.stage]) {
+      if (!deal.isArchived && grouped[deal.stage]) {
         grouped[deal.stage].push(deal);
       }
     }
@@ -144,13 +150,18 @@ export function PipelinePage() {
               deals={dealsByStage[stage]}
               total={stageTotal(stage)}
               onCardClick={setHistoryDeal}
+              onArchive={setSettleDeal}
             />
           ))}
         </div>
       )}
 
+      {/* Archived deals table */}
+      {!isLoading && <ArchivedDealsTable deals={deals} />}
+
       <AddDealDialog open={addOpen} onOpenChange={setAddOpen} />
       <DealHistoryModal deal={historyDeal} onClose={() => setHistoryDeal(null)} />
+      <SettleDealModal deal={settleDeal} onClose={() => setSettleDeal(null)} />
     </div>
   );
 }
@@ -162,11 +173,13 @@ function StageColumn({
   deals,
   total,
   onCardClick,
+  onArchive,
 }: {
   stage: DealStage;
   deals: DealDTO[];
   total: number;
   onCardClick: (deal: DealDTO) => void;
+  onArchive: (deal: DealDTO) => void;
 }) {
   const color = DEAL_STAGE_COLORS[stage];
 
@@ -202,10 +215,196 @@ function StageColumn({
             deal={deal}
             stageColor={color}
             onClick={() => onCardClick(deal)}
+            onArchive={() => onArchive(deal)}
           />
         ))}
       </div>
     </div>
+  );
+}
+
+// ─── Month labels ───────────────────────────────────────────
+
+const MONTH_LABELS = [
+  "Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec",
+  "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień",
+];
+
+// ─── Archived Deals Table ───────────────────────────────────
+
+function ArchivedDealsTable({ deals }: { deals: DealDTO[] }) {
+  const { data: clients = [] } = useClients();
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+
+  const archived = useMemo(
+    () => deals.filter((d) => d.isArchived),
+    [deals]
+  );
+
+  // Build year options from data
+  const years = useMemo(() => {
+    const set = new Set<number>();
+    set.add(currentYear);
+    for (const d of archived) {
+      if (d.payoutDate) {
+        const y = parseInt(d.payoutDate.split("-")[0], 10);
+        if (!isNaN(y)) set.add(y);
+      }
+    }
+    return Array.from(set).sort((a, b) => b - a);
+  }, [archived, currentYear]);
+
+  // Client source lookup
+  const clientSourceMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of clients) {
+      const src = c.source as ClientSource | undefined;
+      map.set(c.id, src ? (CLIENT_SOURCE_LABELS[src] ?? "—") : "—");
+    }
+    return map;
+  }, [clients]);
+
+  // Group by month for selected year
+  const grouped = useMemo(() => {
+    const months: Record<number, DealDTO[]> = {};
+    for (const d of archived) {
+      if (!d.payoutDate) continue;
+      const [y, m] = d.payoutDate.split("-").map(Number);
+      if (y !== selectedYear) continue;
+      if (!months[m]) months[m] = [];
+      months[m].push(d);
+    }
+    return months;
+  }, [archived, selectedYear]);
+
+  const sortedMonths = Object.keys(grouped)
+    .map(Number)
+    .sort((a, b) => a - b);
+
+  const totalCommission = sortedMonths.reduce(
+    (sum, m) =>
+      sum + grouped[m].reduce((s, d) => s + (d.commissionValue ?? 0), 0),
+    0
+  );
+
+  if (archived.length === 0) return null;
+
+  return (
+    <>
+      {/* Divider */}
+      <div
+        className="mt-4 rounded-xl px-5 py-3 flex items-center justify-between"
+        style={GLASS}
+      >
+        <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+          <Archive className="h-5 w-5 text-primary" />
+          Archiwum wypłat
+          {totalCommission > 0 && (
+            <span className="text-sm font-normal text-muted-foreground ml-2">
+              Suma: <span className="text-primary font-semibold">{formatCurrency(totalCommission)}</span>
+            </span>
+          )}
+        </h2>
+        <select
+          value={selectedYear}
+          onChange={(e) => setSelectedYear(Number(e.target.value))}
+          className="rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+        >
+          {years.map((y) => (
+            <option key={y} value={y}>
+              {y}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {sortedMonths.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-6">
+          Brak zarchiwizowanych spraw w {selectedYear} roku.
+        </p>
+      ) : (
+        <div className="space-y-4">
+          {sortedMonths.map((month) => {
+            const monthDeals = grouped[month];
+            const monthTotal = monthDeals.reduce(
+              (s, d) => s + (d.commissionValue ?? 0),
+              0
+            );
+            return (
+              <div key={month} className="rounded-xl overflow-hidden" style={GLASS}>
+                {/* Month header */}
+                <div
+                  className="px-4 py-2 flex items-center justify-between"
+                  style={{
+                    background: "rgba(201, 149, 107, 0.1)",
+                    borderBottom: "1px solid rgba(255,255,255,0.08)",
+                  }}
+                >
+                  <h3 className="text-sm font-semibold text-foreground">
+                    {MONTH_LABELS[month - 1]}
+                  </h3>
+                  <span className="text-sm font-semibold text-primary">
+                    {formatCurrency(monthTotal)}
+                  </span>
+                </div>
+
+                {/* Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-[11px] text-muted-foreground uppercase tracking-wider">
+                        <th className="px-4 py-2 font-medium">Klient</th>
+                        <th className="px-4 py-2 font-medium">Bank</th>
+                        <th className="px-4 py-2 font-medium text-right">Kwota</th>
+                        <th className="px-4 py-2 font-medium text-right">Stawka %</th>
+                        <th className="px-4 py-2 font-medium text-right">Prowizja</th>
+                        <th className="px-4 py-2 font-medium">Źródło</th>
+                        <th className="px-4 py-2 font-medium">Notatki</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {monthDeals.map((d) => (
+                        <tr
+                          key={d.id}
+                          className="border-t border-white/[0.05] hover:bg-white/[0.03] transition-colors"
+                        >
+                          <td className="px-4 py-2.5 text-foreground font-medium">
+                            {d.clientName ?? "—"}
+                          </td>
+                          <td className="px-4 py-2.5 text-foreground">
+                            {d.bank ?? "—"}
+                          </td>
+                          <td className="px-4 py-2.5 text-foreground text-right">
+                            {formatCurrency(d.value)}
+                          </td>
+                          <td className="px-4 py-2.5 text-foreground text-right">
+                            {d.commissionRate != null
+                              ? `${d.commissionRate}%`
+                              : "—"}
+                          </td>
+                          <td className="px-4 py-2.5 text-primary font-semibold text-right">
+                            {d.commissionValue != null
+                              ? formatCurrency(d.commissionValue)
+                              : "—"}
+                          </td>
+                          <td className="px-4 py-2.5 text-muted-foreground text-xs">
+                            {clientSourceMap.get(d.clientId) ?? "—"}
+                          </td>
+                          <td className="px-4 py-2.5 text-muted-foreground text-xs max-w-[200px] truncate">
+                            {d.notes || "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -215,10 +414,12 @@ function DealCard({
   deal,
   stageColor,
   onClick,
+  onArchive,
 }: {
   deal: DealDTO;
   stageColor: string;
   onClick: () => void;
+  onArchive: () => void;
 }) {
   const updateStage = useUpdateDealStage();
   const updateTitle = useUpdateDealTitle();
@@ -386,30 +587,37 @@ function DealCard({
         </button>
       </div>
 
-      {/* CP checkbox — only in Wypłata */}
+      {/* CP checkbox + Archive — only in Wypłata */}
       {isWyplata && (
-        <label
-          className="mt-2 flex items-center gap-1.5 cursor-pointer"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <input
-            type="checkbox"
-            checked={isCP}
-            onChange={(e) => {
-              e.stopPropagation();
-              toggleCP.mutate({ dealId: deal.id, value: !isCP });
-            }}
-            className="h-3.5 w-3.5 rounded border-white/20 bg-white/10 accent-emerald-500"
-          />
-          <span
-            className={cn(
-              "text-[10px] font-medium",
-              isCP ? "text-emerald-400" : "text-amber-400"
-            )}
+        <div className="mt-2 space-y-1.5" onClick={(e) => e.stopPropagation()}>
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isCP}
+              onChange={(e) => {
+                e.stopPropagation();
+                toggleCP.mutate({ dealId: deal.id, value: !isCP });
+              }}
+              className="h-3.5 w-3.5 rounded border-white/20 bg-white/10 accent-emerald-500"
+            />
+            <span
+              className={cn(
+                "text-[10px] font-medium",
+                isCP ? "text-emerald-400" : "text-amber-400"
+              )}
+            >
+              {isCP ? "Zarejestrowano w CP" : "Rejestracja CP"}
+            </span>
+          </label>
+          <button
+            type="button"
+            onClick={onArchive}
+            className="flex items-center gap-1 text-[10px] font-medium text-amber-400 hover:text-amber-300 transition-colors cursor-pointer"
           >
-            {isCP ? "Zarejestrowano w CP" : "Rejestracja CP"}
-          </span>
-        </label>
+            <Archive className="h-3 w-3" />
+            Zarchiwizuj
+          </button>
+        </div>
       )}
     </div>
   );
@@ -548,6 +756,170 @@ function DealHistoryModal({
             </div>
           )}
         </div>
+      </div>
+    </Dialog>
+  );
+}
+
+// ─── Settle Deal Modal ──────────────────────────────────────
+
+function SettleDealModal({
+  deal,
+  onClose,
+}: {
+  deal: DealDTO | null;
+  onClose: () => void;
+}) {
+  const archive = useArchiveDeal();
+
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    setValue,
+    formState: { errors },
+  } = useForm<SettleDealValues>({
+    resolver: zodResolver(settleDealSchema),
+    defaultValues: {
+      bank: "",
+      commissionRate: 0,
+      commissionValue: 0,
+      payoutDate: currentMonth,
+      notes: deal?.notes ?? "",
+    },
+  });
+
+  // Reset form when deal changes
+  useEffect(() => {
+    if (deal) {
+      reset({
+        bank: deal.bank ?? "",
+        commissionRate: deal.commissionRate ?? 0,
+        commissionValue: deal.commissionValue ?? 0,
+        payoutDate: deal.payoutDate ?? currentMonth,
+        notes: deal.notes ?? "",
+      });
+    }
+  }, [deal?.id]);
+
+  const rate = watch("commissionRate");
+
+  // Auto-calculate commission from rate * deal value
+  useEffect(() => {
+    if (deal && rate > 0) {
+      setValue("commissionValue", Math.round(deal.value * rate / 100));
+    }
+  }, [rate, deal?.value]);
+
+  if (!deal) return null;
+
+  const onSubmit = (values: SettleDealValues) => {
+    archive.mutate(
+      { dealId: deal.id, values },
+      {
+        onSuccess: () => {
+          reset();
+          onClose();
+        },
+      }
+    );
+  };
+
+  return (
+    <Dialog open={!!deal} onOpenChange={(open) => !open && onClose()}>
+      <div className="space-y-4">
+        <div className="pr-6">
+          <h2 className="text-lg font-semibold text-foreground">
+            Rozliczenie: {deal.title}
+          </h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {deal.clientName} &middot; {formatCurrency(deal.value)}
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="settle-bank">Bank *</Label>
+            <Input
+              id="settle-bank"
+              placeholder="np. PKO BP, ING, mBank..."
+              {...register("bank")}
+            />
+            {errors.bank && (
+              <p className="text-xs text-destructive">{errors.bank.message}</p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="settle-rate">Stawka %</Label>
+              <Input
+                id="settle-rate"
+                type="number"
+                step="0.01"
+                placeholder="np. 1.5"
+                {...register("commissionRate", { valueAsNumber: true })}
+              />
+              {errors.commissionRate && (
+                <p className="text-xs text-destructive">
+                  {errors.commissionRate.message}
+                </p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="settle-value">Prowizja PLN</Label>
+              <Input
+                id="settle-value"
+                type="number"
+                placeholder="np. 7500"
+                {...register("commissionValue", { valueAsNumber: true })}
+              />
+              {errors.commissionValue && (
+                <p className="text-xs text-destructive">
+                  {errors.commissionValue.message}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="settle-payout">Miesiąc wypłaty</Label>
+            <Input
+              id="settle-payout"
+              type="month"
+              {...register("payoutDate")}
+            />
+            {errors.payoutDate && (
+              <p className="text-xs text-destructive">
+                {errors.payoutDate.message}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="settle-notes">Notatki</Label>
+            <textarea
+              id="settle-notes"
+              {...register("notes")}
+              placeholder="Dodatkowe informacje..."
+              rows={2}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-ring resize-y"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="ghost" onClick={onClose}>
+              Anuluj
+            </Button>
+            <Button type="submit" disabled={archive.isPending}>
+              {archive.isPending ? "Archiwizowanie..." : "Zarchiwizuj"}
+            </Button>
+          </div>
+        </form>
       </div>
     </Dialog>
   );

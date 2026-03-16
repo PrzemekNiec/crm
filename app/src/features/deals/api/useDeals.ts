@@ -6,10 +6,12 @@ import {
   createDeal,
   updateDealStage,
   updateDealTitle,
+  updateDealNotes,
   toggleCPRegistration,
+  archiveDeal,
   dealsQueryKey,
 } from "./deals";
-import type { DealFormValues, DealStage } from "../types/deal";
+import type { DealFormValues, DealStage, SettleDealValues } from "../types/deal";
 
 // ─── Fetch all deals ────────────────────────────────────────
 
@@ -90,6 +92,26 @@ export function useUpdateDealTitle() {
   });
 }
 
+// ─── Update deal notes ──────────────────────────────────────
+
+export function useUpdateDealNotes() {
+  const uid = useAuthStore((s) => s.user?.uid);
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ dealId, notes }: { dealId: string; notes: string }) => {
+      if (!uid) throw new Error("Brak zalogowanego użytkownika");
+      return updateDealNotes(uid, dealId, notes);
+    },
+    onSuccess: () => {
+      if (uid) qc.invalidateQueries({ queryKey: dealsQueryKey(uid) });
+    },
+    onError: () => {
+      toast.error("Nie udało się zapisać notatki");
+    },
+  });
+}
+
 // ─── Toggle CP registration ────────────────────────────────
 
 export function useToggleCPRegistration() {
@@ -112,6 +134,33 @@ export function useToggleCPRegistration() {
     },
     onError: () => {
       toast.error("Nie udało się zaktualizować rejestracji CP");
+    },
+  });
+}
+
+// ─── Archive deal (settlement) ──────────────────────────────
+
+export function useArchiveDeal() {
+  const uid = useAuthStore((s) => s.user?.uid);
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      dealId,
+      values,
+    }: {
+      dealId: string;
+      values: SettleDealValues;
+    }) => {
+      if (!uid) throw new Error("Brak zalogowanego użytkownika");
+      return archiveDeal(uid, dealId, values);
+    },
+    onSuccess: () => {
+      if (uid) qc.invalidateQueries({ queryKey: dealsQueryKey(uid) });
+      toast.success("Szansa zarchiwizowana");
+    },
+    onError: () => {
+      toast.error("Nie udało się zarchiwizować szansy");
     },
   });
 }

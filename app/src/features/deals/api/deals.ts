@@ -19,6 +19,7 @@ import type {
   DealFormValues,
   DealStage,
   DealHistoryEntry,
+  SettleDealValues,
 } from "../types/deal";
 
 // ─── Firestore converter ────────────────────────────────────
@@ -31,6 +32,7 @@ const dealConverter: FirestoreDataConverter<DealDTO> = {
       title: deal.title,
       value: deal.value,
       stage: deal.stage,
+      notes: deal.notes ?? "",
       isRegisteredInCP: deal.isRegisteredInCP ?? false,
       history: deal.history ?? [],
       createdAt: deal.createdAt,
@@ -64,11 +66,18 @@ const dealConverter: FirestoreDataConverter<DealDTO> = {
       title: d.title ?? "",
       value: d.value ?? 0,
       stage: d.stage ?? "potencjalne",
+      notes: d.notes ?? "",
       isRegisteredInCP: d.isRegisteredInCP ?? false,
       history,
       createdAt: d.createdAt?.toDate?.()
         ? d.createdAt.toDate().toISOString()
         : new Date().toISOString(),
+      // Settlement fields
+      isArchived: d.isArchived ?? false,
+      bank: d.bank ?? undefined,
+      commissionRate: d.commissionRate ?? undefined,
+      commissionValue: d.commissionValue ?? undefined,
+      payoutDate: d.payoutDate ?? undefined,
     };
   },
 };
@@ -149,6 +158,21 @@ export async function updateDealTitle(
   });
 }
 
+// ─── Update deal notes ──────────────────────────────────────
+
+export async function updateDealNotes(
+  uid: string,
+  dealId: string,
+  notes: string
+): Promise<void> {
+  const db = getDb();
+  const ref = doc(db, "users", uid, "deals", dealId);
+  await updateDoc(ref, {
+    notes,
+    updatedAt: serverTimestamp(),
+  });
+}
+
 // ─── Toggle CP registration ────────────────────────────────
 
 export async function toggleCPRegistration(
@@ -160,6 +184,26 @@ export async function toggleCPRegistration(
   const ref = doc(db, "users", uid, "deals", dealId);
   await updateDoc(ref, {
     isRegisteredInCP: value,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+// ─── Archive deal (settlement) ──────────────────────────────
+
+export async function archiveDeal(
+  uid: string,
+  dealId: string,
+  values: SettleDealValues
+): Promise<void> {
+  const db = getDb();
+  const ref = doc(db, "users", uid, "deals", dealId);
+  await updateDoc(ref, {
+    isArchived: true,
+    bank: values.bank,
+    commissionRate: values.commissionRate,
+    commissionValue: values.commissionValue,
+    payoutDate: values.payoutDate,
+    notes: values.notes ?? "",
     updatedAt: serverTimestamp(),
   });
 }
