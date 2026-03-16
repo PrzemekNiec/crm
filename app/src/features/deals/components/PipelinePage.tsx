@@ -268,17 +268,24 @@ function ArchivedDealsTable({ deals }: { deals: DealDTO[] }) {
     return map;
   }, [clients]);
 
-  // Group by month for selected year
-  const grouped = useMemo(() => {
+  // Group by month for selected year + rejected without payoutDate
+  const { grouped, rejected } = useMemo(() => {
     const months: Record<number, DealDTO[]> = {};
+    const rej: DealDTO[] = [];
     for (const d of archived) {
+      if (d.isRejected && !d.payoutDate) {
+        // Check year by createdAt
+        const y = new Date(d.createdAt).getFullYear();
+        if (y === selectedYear) rej.push(d);
+        continue;
+      }
       if (!d.payoutDate) continue;
       const [y, m] = d.payoutDate.split("-").map(Number);
       if (y !== selectedYear) continue;
       if (!months[m]) months[m] = [];
       months[m].push(d);
     }
-    return months;
+    return { grouped: months, rejected: rej };
   }, [archived, selectedYear]);
 
   const sortedMonths = Object.keys(grouped)
@@ -290,6 +297,8 @@ function ArchivedDealsTable({ deals }: { deals: DealDTO[] }) {
       sum + grouped[m].reduce((s, d) => s + (d.commissionValue ?? 0), 0),
     0
   );
+
+  const hasContent = sortedMonths.length > 0 || rejected.length > 0;
 
   if (archived.length === 0) return null;
 
@@ -322,7 +331,7 @@ function ArchivedDealsTable({ deals }: { deals: DealDTO[] }) {
         </select>
       </div>
 
-      {sortedMonths.length === 0 ? (
+      {!hasContent ? (
         <p className="text-sm text-muted-foreground text-center py-6">
           Brak zarchiwizowanych spraw w {selectedYear} roku.
         </p>
@@ -353,36 +362,75 @@ function ArchivedDealsTable({ deals }: { deals: DealDTO[] }) {
                 </div>
 
                 {/* Table */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-left text-[11px] text-muted-foreground uppercase tracking-wider">
-                        <th className="px-4 py-2 font-medium">Klient</th>
-                        <th className="px-4 py-2 font-medium">Bank</th>
-                        <th className="px-4 py-2 font-medium text-right">Kwota</th>
-                        <th className="px-4 py-2 font-medium text-right">Stawka %</th>
-                        <th className="px-4 py-2 font-medium text-right">Prowizja</th>
-                        <th className="px-4 py-2 font-medium">Źródło</th>
-                        <th className="px-4 py-2 font-medium">Notatki</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {monthDeals.map((d) => (
-                        <ArchiveRow
-                          key={d.id}
-                          deal={d}
-                          clientSource={clientSourceMap.get(d.clientId) ?? "—"}
-                        />
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <ArchiveTable
+                  deals={monthDeals}
+                  clientSourceMap={clientSourceMap}
+                />
               </div>
             );
           })}
+
+          {/* Rejected deals section */}
+          {rejected.length > 0 && (
+            <div className="rounded-xl overflow-hidden" style={GLASS}>
+              <div
+                className="px-4 py-2 flex items-center justify-between"
+                style={{
+                  background: "rgba(239, 68, 68, 0.1)",
+                  borderBottom: "1px solid rgba(239, 68, 68, 0.2)",
+                }}
+              >
+                <h3 className="text-sm font-semibold text-red-400 flex items-center gap-1.5">
+                  <XCircle className="h-4 w-4" />
+                  Odrzucone ({rejected.length})
+                </h3>
+              </div>
+              <ArchiveTable
+                deals={rejected}
+                clientSourceMap={clientSourceMap}
+              />
+            </div>
+          )}
         </div>
       )}
     </>
+  );
+}
+
+// ─── Archive Table (shared) ─────────────────────────────────
+
+function ArchiveTable({
+  deals,
+  clientSourceMap,
+}: {
+  deals: DealDTO[];
+  clientSourceMap: Map<string, string>;
+}) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-left text-[11px] text-muted-foreground uppercase tracking-wider">
+            <th className="px-4 py-2 font-medium">Klient</th>
+            <th className="px-4 py-2 font-medium">Bank</th>
+            <th className="px-4 py-2 font-medium text-right">Kwota</th>
+            <th className="px-4 py-2 font-medium text-right">Stawka %</th>
+            <th className="px-4 py-2 font-medium text-right">Prowizja</th>
+            <th className="px-4 py-2 font-medium">Źródło</th>
+            <th className="px-4 py-2 font-medium">Notatki</th>
+          </tr>
+        </thead>
+        <tbody>
+          {deals.map((d) => (
+            <ArchiveRow
+              key={d.id}
+              deal={d}
+              clientSource={clientSourceMap.get(d.clientId) ?? "—"}
+            />
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -396,6 +444,7 @@ function ArchiveRow({
   clientSource: string;
 }) {
   const updateCommission = useUpdateDealCommission();
+  const updateNotes = useUpdateDealNotes();
   const uid = useAuthStore((s) => s.user?.uid);
   const qc = useQueryClient();
 
@@ -403,6 +452,10 @@ function ArchiveRow({
   const [rate, setRate] = useState(deal.commissionRate ?? 0);
   const [val, setVal] = useState(deal.commissionValue ?? 0);
   const rateRef = useRef<HTMLInputElement>(null);
+
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [notesVal, setNotesVal] = useState(deal.notes ?? "");
+  const notesRef = useRef<HTMLTextAreaElement>(null);
 
   const startEdit = () => {
     setRate(deal.commissionRate ?? 0);
@@ -427,10 +480,30 @@ function ArchiveRow({
     setEditing(false);
   };
 
-  // Auto-calc commission when rate changes during edit
   const handleRateChange = (newRate: number) => {
     setRate(newRate);
     setVal(Math.round(deal.value * newRate / 100));
+  };
+
+  const startEditNotes = () => {
+    setNotesVal(deal.notes ?? "");
+    setEditingNotes(true);
+    setTimeout(() => notesRef.current?.focus(), 0);
+  };
+
+  const saveNotes = () => {
+    const trimmed = notesVal.trim();
+    if (trimmed !== (deal.notes ?? "").trim()) {
+      if (uid) {
+        qc.setQueryData<DealDTO[]>(dealsQueryKey(uid), (old) =>
+          old?.map((d) =>
+            d.id === deal.id ? { ...d, notes: trimmed } : d
+          )
+        );
+      }
+      updateNotes.mutate({ dealId: deal.id, notes: trimmed });
+    }
+    setEditingNotes(false);
   };
 
   return (
@@ -499,10 +572,32 @@ function ArchiveRow({
       <td className="px-4 py-2.5 text-muted-foreground text-xs">
         {clientSource}
       </td>
-      <td className="px-4 py-2.5 text-muted-foreground text-xs max-w-[200px] truncate">
-        {deal.isRejected && deal.rejectionReason
-          ? <span className="text-red-400">{deal.rejectionReason}</span>
-          : (deal.notes || "—")}
+      <td className="px-4 py-2.5 text-muted-foreground text-xs max-w-[250px]">
+        {editingNotes ? (
+          <textarea
+            ref={notesRef}
+            value={notesVal}
+            onChange={(e) => setNotesVal(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setEditingNotes(false);
+            }}
+            onBlur={saveNotes}
+            rows={2}
+            className="w-full rounded bg-white/10 border border-white/20 px-1.5 py-0.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/50 resize-y"
+          />
+        ) : (
+          <span
+            className="cursor-pointer group inline-flex items-center gap-1 hover:text-foreground transition-colors"
+            onClick={startEditNotes}
+          >
+            {deal.isRejected && deal.rejectionReason ? (
+              <span className="text-red-400 truncate">{deal.rejectionReason}</span>
+            ) : (
+              <span className="truncate">{deal.notes || "—"}</span>
+            )}
+            <Pencil className="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </span>
+        )}
       </td>
     </tr>
   );
