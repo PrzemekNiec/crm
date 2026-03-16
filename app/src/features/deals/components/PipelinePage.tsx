@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/useAuthStore";
 import {
@@ -6,6 +6,7 @@ import {
   useCreateDeal,
   useUpdateDealStage,
   useUpdateDealTitle,
+  useUpdateDealNotes,
   useToggleCPRegistration,
 } from "../api/useDeals";
 import { dealsQueryKey } from "../api/deals";
@@ -271,15 +272,23 @@ function DealCard({
       : "0 0 15px rgba(234, 179, 8, 0.6)"
     : undefined;
 
+  const hasNotes = !!(deal.notes && deal.notes.trim());
+
   return (
     <div
-      className="rounded-lg p-2.5 cursor-pointer transition-shadow"
+      className={cn(
+        "rounded-lg p-2.5 cursor-pointer transition-shadow",
+        hasNotes && "animate-pulse-border"
+      )}
       style={{
         ...GLASS_CARD,
         borderLeft: `3px solid ${stageColor}`,
         boxShadow: glowShadow
           ? `${GLASS_CARD.boxShadow}, ${glowShadow}`
           : GLASS_CARD.boxShadow,
+        ...(hasNotes
+          ? { border: "1px solid rgba(239, 68, 68, 0.7)" }
+          : {}),
       }}
       onClick={onClick}
     >
@@ -415,12 +424,42 @@ function DealHistoryModal({
   deal: DealDTO | null;
   onClose: () => void;
 }) {
+  const updateNotes = useUpdateDealNotes();
+  const uid = useAuthStore((s) => s.user?.uid);
+  const qc = useQueryClient();
+  const [notesValue, setNotesValue] = useState("");
+  const [notesDirty, setNotesDirty] = useState(false);
+
+  // Sync local state when deal changes
+  useEffect(() => {
+    if (deal) {
+      setNotesValue(deal.notes ?? "");
+      setNotesDirty(false);
+    }
+  }, [deal?.id]);
+
   if (!deal) return null;
 
   const stageColor = DEAL_STAGE_COLORS[deal.stage];
 
+  const saveNotes = () => {
+    if (!notesDirty) return;
+    if (uid) {
+      qc.setQueryData<DealDTO[]>(dealsQueryKey(uid), (old) =>
+        old?.map((d) => (d.id === deal.id ? { ...d, notes: notesValue } : d))
+      );
+    }
+    updateNotes.mutate({ dealId: deal.id, notes: notesValue });
+    setNotesDirty(false);
+  };
+
   return (
-    <Dialog open={!!deal} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={!!deal} onOpenChange={(open) => {
+      if (!open) {
+        saveNotes();
+        onClose();
+      }
+    }}>
       <div className="space-y-4">
         {/* Header */}
         <div className="pr-6">
@@ -451,6 +490,25 @@ function DealHistoryModal({
               CP
             </Badge>
           )}
+        </div>
+
+        {/* Notes */}
+        <div>
+          <Label htmlFor="deal-notes" className="text-sm font-semibold text-foreground mb-1.5 block">
+            Notatki
+          </Label>
+          <textarea
+            id="deal-notes"
+            value={notesValue}
+            onChange={(e) => {
+              setNotesValue(e.target.value);
+              setNotesDirty(true);
+            }}
+            onBlur={saveNotes}
+            placeholder="Dodaj notatki do tej szansy..."
+            rows={3}
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-ring resize-y"
+          />
         </div>
 
         {/* Timeline */}

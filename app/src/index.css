@@ -100,3 +100,14 @@ select option {
   background-color: rgb(201 149 107 / 0.15) !important;
   cursor: pointer;
 }
+
+/* ─── Pulse border animation for deals with notes ──────────── */
+
+@keyframes pulse-border {
+  0%, 100% { border-color: rgba(239, 68, 68, 0.7); }
+  50% { border-color: rgba(239, 68, 68, 0.15); }
+}
+
+.animate-pulse-border {
+  animation: pulse-border 2s ease-in-out infinite;
+}
