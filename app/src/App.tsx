@@ -10,6 +10,7 @@ import { ClientsPage } from "@/features/clients/components/ClientsPage";
 import { TasksPage } from "@/features/tasks/components/TasksPage";
 import { SettingsPage } from "@/features/settings/components/SettingsPage";
 import { LeadsPage } from "@/features/leads/components/LeadsPage";
+import { ClientDetailsPage } from "@/features/clients/components/ClientDetailsPage";
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
 
@@ -34,10 +35,7 @@ function AppInner() {
           <Route path="tasks" element={<TasksPage />} />
           <Route path="leads" element={<LeadsPage />} />
           <Route path="settings" element={<SettingsPage />} />
-          {/* Phase 1 — remaining routes:
-            <Route path="clients/:id" element={<ClientDetailPage />} />
-            <Route path="clients/:id/edit" element={<ClientFormPage />} />
-          */}
+          <Route path="clients/:id" element={<ClientDetailsPage />} />
         </Route>
       </Routes>
     </AuthGuard>

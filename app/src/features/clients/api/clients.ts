@@ -1,9 +1,11 @@
 import {
   collection,
+  doc,
   query,
   where,
   orderBy,
   getDocs,
+  getDoc,
   addDoc,
   serverTimestamp,
   type FirestoreDataConverter,
@@ -146,6 +148,23 @@ export async function fetchClients(uid: string): Promise<ClientDTO[]> {
 
   const snap = await getDocs(q);
   return snap.docs.map((doc) => doc.data());
+}
+
+/** Fetch a single client by ID. Returns null if not found. */
+export async function fetchClient(
+  uid: string,
+  clientId: string
+): Promise<ClientDTO | null> {
+  const db = getDb();
+  const ref = doc(db, "users", uid, "clients", clientId).withConverter(
+    clientConverter
+  );
+  const snap = await getDoc(ref);
+  return snap.exists() ? snap.data() : null;
+}
+
+export function clientQueryKey(uid: string, clientId: string) {
+  return ["clients", uid, clientId] as const;
 }
 
 /** Create a new client document. Returns the generated id. */

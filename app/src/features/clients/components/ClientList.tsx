@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useClients } from "../api/useClients";
 import { Badge } from "@/components/ui/Badge";
 import {
@@ -67,6 +68,7 @@ interface ClientListProps {
 }
 
 export function ClientList({ searchQuery }: ClientListProps) {
+  const navigate = useNavigate();
   const { data: clients, isLoading, isError } = useClients();
 
   const filtered = useMemo(() => {
@@ -156,7 +158,8 @@ export function ClientList({ searchQuery }: ClientListProps) {
             {filtered.map((client) => (
               <tr
                 key={client.id}
-                className="transition-colors hover:bg-white/[0.05]"
+                onClick={() => navigate(`/clients/${client.id}`)}
+                className="transition-colors hover:bg-white/[0.05] cursor-pointer"
               >
                 <td className="px-4 py-3 font-medium text-foreground">
                   {client.fullName}
@@ -219,7 +222,8 @@ export function ClientList({ searchQuery }: ClientListProps) {
         {filtered.map((client) => (
           <div
             key={client.id}
-            className="rounded-xl p-4"
+            onClick={() => navigate(`/clients/${client.id}`)}
+            className="rounded-xl p-4 cursor-pointer transition-colors hover:bg-white/[0.02]"
             style={{
               background: "rgba(30, 41, 59, 0.5)",
               backdropFilter: "blur(12px)",
