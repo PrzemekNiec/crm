@@ -4,6 +4,7 @@ import {
   Users,
   CheckSquare,
   Zap,
+  Kanban,
   Settings,
   LogOut,
   type LucideIcon,
@@ -24,6 +25,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/clients", label: "Klienci", icon: Users },
   { to: "/tasks", label: "Zadania", icon: CheckSquare },
   { to: "/leads", label: "Potencjalni", icon: Zap },
+  { to: "/pipeline", label: "Lejek sprzedaży", icon: Kanban },
   { to: "/settings", label: "Ustawienia", icon: Settings },
 ];
 

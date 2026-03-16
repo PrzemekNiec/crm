@@ -1,0 +1,69 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuthStore } from "@/store/useAuthStore";
+import { toast } from "@/components/ui/Toast";
+import {
+  fetchDeals,
+  createDeal,
+  updateDealStage,
+  dealsQueryKey,
+} from "./deals";
+import type { DealFormValues, DealStage } from "../types/deal";
+
+// ─── Fetch all deals ────────────────────────────────────────
+
+export function useDeals() {
+  const uid = useAuthStore((s) => s.user?.uid);
+
+  return useQuery({
+    queryKey: dealsQueryKey(uid ?? ""),
+    queryFn: () => fetchDeals(uid!),
+    enabled: !!uid,
+  });
+}
+
+// ─── Create deal ────────────────────────────────────────────
+
+export function useCreateDeal() {
+  const uid = useAuthStore((s) => s.user?.uid);
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (values: DealFormValues & { clientName?: string }) => {
+      if (!uid) throw new Error("Brak zalogowanego użytkownika");
+      return createDeal(uid, values);
+    },
+    onSuccess: () => {
+      if (uid) qc.invalidateQueries({ queryKey: dealsQueryKey(uid) });
+      toast.success("Szansa sprzedażowa dodana");
+    },
+    onError: () => {
+      toast.error("Nie udało się dodać szansy sprzedażowej");
+    },
+  });
+}
+
+// ─── Update deal stage (drag & drop) ────────────────────────
+
+export function useUpdateDealStage() {
+  const uid = useAuthStore((s) => s.user?.uid);
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      dealId,
+      stage,
+    }: {
+      dealId: string;
+      stage: DealStage;
+    }) => {
+      if (!uid) throw new Error("Brak zalogowanego użytkownika");
+      return updateDealStage(uid, dealId, stage);
+    },
+    onSuccess: () => {
+      if (uid) qc.invalidateQueries({ queryKey: dealsQueryKey(uid) });
+    },
+    onError: () => {
+      toast.error("Nie udało się zaktualizować etapu");
+    },
+  });
+}
