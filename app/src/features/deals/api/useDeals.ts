@@ -5,6 +5,7 @@ import {
   fetchDeals,
   createDeal,
   updateDealStage,
+  updateDealTitle,
   toggleCPRegistration,
   dealsQueryKey,
 } from "./deals";
@@ -65,6 +66,26 @@ export function useUpdateDealStage() {
     },
     onError: () => {
       toast.error("Nie udało się zaktualizować etapu");
+    },
+  });
+}
+
+// ─── Update deal title ──────────────────────────────────────
+
+export function useUpdateDealTitle() {
+  const uid = useAuthStore((s) => s.user?.uid);
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ dealId, title }: { dealId: string; title: string }) => {
+      if (!uid) throw new Error("Brak zalogowanego użytkownika");
+      return updateDealTitle(uid, dealId, title);
+    },
+    onSuccess: () => {
+      if (uid) qc.invalidateQueries({ queryKey: dealsQueryKey(uid) });
+    },
+    onError: () => {
+      toast.error("Nie udało się zaktualizować tytułu");
     },
   });
 }

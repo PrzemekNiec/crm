@@ -1,10 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/useAuthStore";
 import {
   useDeals,
   useCreateDeal,
   useUpdateDealStage,
+  useUpdateDealTitle,
   useToggleCPRegistration,
 } from "../api/useDeals";
 import { dealsQueryKey } from "../api/deals";
@@ -29,6 +30,8 @@ import {
   Clock,
   ChevronLeft,
   ChevronRight,
+  Pencil,
+  Check,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useForm } from "react-hook-form";
@@ -217,13 +220,37 @@ function DealCard({
   onClick: () => void;
 }) {
   const updateStage = useUpdateDealStage();
+  const updateTitle = useUpdateDealTitle();
   const toggleCP = useToggleCPRegistration();
   const uid = useAuthStore((s) => s.user?.uid);
   const qc = useQueryClient();
 
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(deal.title);
+  const inputRef = useRef<HTMLInputElement>(null);
+
   const { prev, next } = getAdjacentStages(deal.stage);
   const isWyplata = deal.stage === "wyplata";
   const isCP = deal.isRegisteredInCP ?? false;
+
+  const startEditing = () => {
+    setEditValue(deal.title);
+    setIsEditing(true);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
+
+  const saveTitle = () => {
+    const trimmed = editValue.trim();
+    if (trimmed && trimmed !== deal.title) {
+      if (uid) {
+        qc.setQueryData<DealDTO[]>(dealsQueryKey(uid), (old) =>
+          old?.map((d) => (d.id === deal.id ? { ...d, title: trimmed } : d))
+        );
+      }
+      updateTitle.mutate({ dealId: deal.id, title: trimmed });
+    }
+    setIsEditing(false);
+  };
 
   const moveTo = (newStage: DealStage) => {
     // Optimistic update
@@ -258,9 +285,47 @@ function DealCard({
     >
       {/* Content */}
       <div className="min-w-0">
-        <p className="text-xs font-medium text-foreground truncate">
-          {deal.title}
-        </p>
+        {isEditing ? (
+          <div
+            className="flex items-center gap-1"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <input
+              ref={inputRef}
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") saveTitle();
+                if (e.key === "Escape") setIsEditing(false);
+              }}
+              onBlur={saveTitle}
+              className="w-full rounded bg-white/10 border border-white/20 px-1.5 py-0.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/50"
+            />
+            <button
+              type="button"
+              onClick={saveTitle}
+              className="shrink-0 text-emerald-400 hover:text-emerald-300 cursor-pointer"
+            >
+              <Check className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1 group">
+            <p className="text-xs font-medium text-foreground truncate">
+              {deal.title}
+            </p>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                startEditing();
+              }}
+              className="shrink-0 text-muted-foreground/0 group-hover:text-muted-foreground hover:!text-foreground cursor-pointer transition-colors"
+            >
+              <Pencil className="h-3 w-3" />
+            </button>
+          </div>
+        )}
         <p className="mt-0.5 text-sm font-semibold text-primary">
           {formatCurrency(deal.value)}
         </p>

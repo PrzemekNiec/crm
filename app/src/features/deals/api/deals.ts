@@ -134,6 +134,21 @@ export async function updateDealStage(
   });
 }
 
+// ─── Update deal title ──────────────────────────────────────
+
+export async function updateDealTitle(
+  uid: string,
+  dealId: string,
+  title: string
+): Promise<void> {
+  const db = getDb();
+  const ref = doc(db, "users", uid, "deals", dealId);
+  await updateDoc(ref, {
+    title,
+    updatedAt: serverTimestamp(),
+  });
+}
+
 // ─── Toggle CP registration ────────────────────────────────
 
 export async function toggleCPRegistration(
