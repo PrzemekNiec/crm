@@ -42,6 +42,12 @@ import {
   TASK_TYPE_EMOJI,
   type TaskType,
 } from "@/features/tasks/types/task";
+import { useDeals } from "@/features/deals/api/useDeals";
+import {
+  DEAL_STAGE_LABELS,
+  DEAL_STAGE_COLORS,
+  type DealStage,
+} from "@/features/deals/types/deal";
 import { cn } from "@/lib/cn";
 
 // ─── Glassmorphism card style ────────────────────────────────
@@ -56,7 +62,7 @@ const glassStyle: React.CSSProperties = {
 
 // ─── Tabs ────────────────────────────────────────────────────
 
-type Tab = "notes" | "tasks" | "documents";
+type Tab = "notes" | "tasks" | "documents" | "deals";
 
 const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
   { key: "notes", label: "Oś czasu", icon: <FileText className="h-4 w-4" /> },
@@ -69,6 +75,11 @@ const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
     key: "documents",
     label: "Dokumenty",
     icon: <FolderOpen className="h-4 w-4" />,
+  },
+  {
+    key: "deals",
+    label: "Szanse",
+    icon: <span className="text-sm leading-none">💰</span>,
   },
 ];
 
@@ -520,6 +531,99 @@ function DocumentsTab({ clientId }: { clientId: string }) {
   );
 }
 
+// ─── Deals Tab ──────────────────────────────────────────────
+
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat("pl-PL", {
+    style: "currency",
+    currency: "PLN",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function DealsTab({ clientId }: { clientId: string }) {
+  const { data: allDeals, isLoading } = useDeals();
+  const navigate = useNavigate();
+
+  const clientDeals = useMemo(() => {
+    if (!allDeals) return [];
+    return allDeals.filter((d) => d.clientId === clientId);
+  }, [allDeals, clientId]);
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-2">
+        {Array.from({ length: 2 }).map((_, i) => (
+          <div key={i} className="rounded-xl p-4 animate-pulse" style={glassStyle}>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded bg-muted" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 w-48 rounded bg-muted" />
+                <div className="h-3 w-32 rounded bg-muted" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (clientDeals.length === 0) {
+    return (
+      <div
+        className="flex flex-col items-center gap-3 rounded-xl p-12 text-center"
+        style={glassStyle}
+      >
+        <span className="text-4xl">💰</span>
+        <p className="text-sm text-muted-foreground">
+          Brak szans sprzedażowych dla tego klienta.
+        </p>
+        <Button variant="outline" size="sm" onClick={() => navigate("/pipeline")}>
+          Przejdź do lejka sprzedaży
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      {clientDeals.map((deal) => {
+        const stageColor = DEAL_STAGE_COLORS[deal.stage as DealStage];
+        const stageLabel = DEAL_STAGE_LABELS[deal.stage as DealStage] ?? deal.stage;
+
+        return (
+          <div
+            key={deal.id}
+            className="rounded-xl p-4"
+            style={{
+              ...glassStyle,
+              borderLeft: `3px solid ${stageColor}`,
+            }}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-foreground truncate">
+                  {deal.title}
+                </p>
+                <p className="mt-1 text-base font-semibold text-primary">
+                  {formatCurrency(deal.value)}
+                </p>
+              </div>
+              <Badge
+                variant="secondary"
+                className="shrink-0 text-xs"
+                style={{ borderColor: stageColor, color: stageColor }}
+              >
+                {stageLabel}
+              </Badge>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Main Page ───────────────────────────────────────────────
 
 export function ClientDetailsPage() {
@@ -678,6 +782,7 @@ export function ClientDetailsPage() {
       {tab === "notes" && id && <NotesTab clientId={id} />}
       {tab === "tasks" && id && <TasksTab clientId={id} />}
       {tab === "documents" && id && <DocumentsTab clientId={id} />}
+      {tab === "deals" && id && <DealsTab clientId={id} />}
 
       {/* Edit client dialog */}
       <EditClientDialog
