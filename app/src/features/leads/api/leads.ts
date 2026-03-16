@@ -23,6 +23,7 @@ interface LeadDoc {
   estimatedAmount?: number;
   phone?: string;
   status: string;
+  lossReason?: string;
   createdAt: Timestamp;
 }
 
@@ -34,6 +35,7 @@ export interface LeadDTO {
   estimatedAmount?: number;
   phone?: string;
   status: string;
+  lossReason?: string;
   createdAt: string | null;
 }
 
@@ -60,6 +62,7 @@ export const leadConverter: FirestoreDataConverter<LeadDTO> = {
       estimatedAmount: d.estimatedAmount,
       phone: d.phone,
       status: d.status ?? "new",
+      lossReason: d.lossReason,
       createdAt: timestampToISO(d.createdAt),
     };
   },
@@ -134,4 +137,19 @@ export async function convertLead(
   });
 
   return clientDoc.id;
+}
+
+// ─── Reject lead (soft delete) ───────────────────────────────
+
+export async function rejectLead(
+  uid: string,
+  leadId: string,
+  lossReason: string
+): Promise<void> {
+  const db = getDb();
+  const leadRef = doc(db, "users", uid, "leads", leadId);
+  await updateDoc(leadRef, {
+    status: "lost",
+    lossReason,
+  });
 }

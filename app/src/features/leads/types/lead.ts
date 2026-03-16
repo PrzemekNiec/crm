@@ -2,14 +2,22 @@ import { z } from "zod";
 
 // ─── Lead statuses ──────────────────────────────────────────
 
-export const LEAD_STATUSES = ["new", "contacted", "converted"] as const;
+export const LEAD_STATUSES = ["new", "contacted", "converted", "lost"] as const;
 export type LeadStatus = (typeof LEAD_STATUSES)[number];
 
 export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
   new: "Nowy",
   contacted: "Skontaktowany",
   converted: "Przekonwertowany",
+  lost: "Odrzucony",
 };
+
+export const LOSS_REASONS = [
+  "Brak kontaktu",
+  "Załatwił sam",
+  "Brak zdolności",
+  "Słaba oferta",
+] as const;
 
 // ─── Zod schema: quick add form ─────────────────────────────
 
