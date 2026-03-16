@@ -210,6 +210,7 @@ function RescheduleDialog({
         durationMin: task.durationMin,
         googleEventId: task.googleEventId,
         syncToGoogleCalendar: task.syncToGoogleCalendar,
+        type: task.type,
       },
       { onSuccess: () => onOpenChange(false) }
     );

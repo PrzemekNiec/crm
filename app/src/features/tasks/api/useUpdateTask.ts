@@ -43,6 +43,7 @@ interface RescheduleInput {
   durationMin: number;
   googleEventId: string | null;
   syncToGoogleCalendar: boolean;
+  type?: string;
 }
 
 export function useRescheduleTask() {
@@ -74,6 +75,7 @@ export function useRescheduleTask() {
             durationMin: input.durationMin,
             googleEventId:
               input.googleEventId || generateGoogleEventId(input.taskId),
+            type: input.type,
           });
           toast.success("Zadanie przełożone i kalendarz zaktualizowany");
         } catch {

@@ -173,7 +173,25 @@ interface SyncTaskData {
   dueDate: string; // ISO string
   durationMin: number;
   googleEventId: string;
+  type?: string; // task type: call, meeting, followup, docs, check, custom
 }
+
+// ─── Smart formatting for Google Calendar events ────────────
+const CALENDAR_FORMAT: Record<string, { emoji: string; colorId: string }> = {
+  call: { emoji: "📞", colorId: "5" },       // Yellow / Banana
+};
+const DEFAULT_FORMAT = { emoji: "💼", colorId: "11" }; // Red / Tomato
+
+function formatForCalendar(
+  title: string,
+  type?: string
+): { summary: string; colorId: string } {
+  const fmt = (type && CALENDAR_FORMAT[type]) || DEFAULT_FORMAT;
+  return { summary: `${fmt.emoji} ${title}`, colorId: fmt.colorId };
+}
+
+// Regex to strip CRM emoji prefixes from Google Calendar titles
+const EMOJI_PREFIX_RE = /^[\p{Emoji_Presentation}\p{Extended_Pictographic}]+\s+/u;
 
 export const syncTaskToGoogleCalendar = onCall(
   { region: "europe-west1" },
@@ -196,15 +214,18 @@ export const syncTaskToGoogleCalendar = onCall(
     // 3. Get valid access token
     const { accessToken, calendarId } = await getValidAccessToken(uid);
 
-    // 4. Build calendar event
+    // 4. Build calendar event with smart formatting (emoji + color)
     const startDate = new Date(data.dueDate);
     const endDate = new Date(
       startDate.getTime() + (data.durationMin || 30) * 60 * 1000
     );
 
+    const { summary, colorId } = formatForCalendar(data.title, data.type);
+
     const event = {
       id: data.googleEventId,
-      summary: data.title,
+      summary,
+      colorId,
       description: data.description || "",
       start: {
         dateTime: startDate.toISOString(),
@@ -655,9 +676,12 @@ export const googleCalendarWebhook = onRequest(
           updatedAt: FieldValue.serverTimestamp(),
         };
 
-        // Update title if changed
-        if (event.summary && event.summary !== taskData.title) {
-          update.title = event.summary;
+        // Update title if changed — strip CRM emoji prefix first
+        if (event.summary) {
+          const cleanTitle = event.summary.replace(EMOJI_PREFIX_RE, "");
+          if (cleanTitle !== taskData.title) {
+            update.title = cleanTitle;
+          }
         }
 
         // Update description if changed

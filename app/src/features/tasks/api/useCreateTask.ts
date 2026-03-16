@@ -42,6 +42,7 @@ export function useCreateTask() {
               dueDate: string;
               durationMin: number;
               googleEventId: string;
+              type?: string;
             },
             SyncResponse
           >(getFunctions(), "syncTaskToGoogleCalendar");
@@ -53,6 +54,7 @@ export function useCreateTask() {
             dueDate: values.dueDate,
             durationMin: values.durationMin,
             googleEventId: generateGoogleEventId(taskId),
+            type: values.type,
           });
 
           toast.success("Zadanie zapisane i dodane do kalendarza!");
