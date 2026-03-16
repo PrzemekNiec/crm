@@ -3,7 +3,8 @@ import { useTasks } from "@/features/tasks/api/useTasks";
 import { useLeads } from "@/features/leads/api/useLeads";
 import { useGoogleIntegration } from "../hooks/useGoogleIntegration";
 import { useCalendarAuth } from "@/features/calendar/hooks/useCalendarAuth";
-import { useCompleteTask } from "@/features/tasks/api/useUpdateTask";
+import { useCompleteTask, useRescheduleTask } from "@/features/tasks/api/useUpdateTask";
+import { useDeleteTask } from "@/features/tasks/api/useDeleteTask";
 import {
   TASK_TYPE_EMOJI,
   TASK_TYPE_LABELS,
@@ -18,10 +19,22 @@ import {
   Clock,
   Phone,
   User,
+  X,
   Zap,
   RefreshCw,
 } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { Label } from "@/components/ui/Label";
+import {
+  Dialog,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/Dialog";
 
 // ─── Helpers ──────────────────────────────────────────────────
 
@@ -156,8 +169,123 @@ function StatsCards({ todayCount, overdueCount, newLeadsCount }: StatsProps) {
 
 // ─── Today Tasks Timeline ────────────────────────────────────
 
-function TodayTimeline({ tasks }: { tasks: TaskDTO[] }) {
+// ─── Time options for reschedule ─────────────────────────────
+
+const TIME_OPTIONS = (() => {
+  const opts = [{ value: "", label: "Bez godziny" }];
+  for (let h = 6; h <= 21; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      const hh = String(h).padStart(2, "0");
+      const mm = String(m).padStart(2, "0");
+      opts.push({ value: `${hh}:${mm}`, label: `${hh}:${mm}` });
+    }
+  }
+  return opts;
+})();
+
+function RescheduleDialog({
+  task,
+  open,
+  onOpenChange,
+}: {
+  task: TaskDTO;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const reschedule = useRescheduleTask();
+  const currentDate = task.dueDate ? task.dueDate.split("T")[0] : "";
+  const currentTime = task.dueDate?.split("T")[1]?.slice(0, 5) ?? "";
+  const [date, setDate] = useState(currentDate);
+  const [time, setTime] = useState(currentTime);
+
+  const handleSave = () => {
+    if (!date) return;
+    const dueDate = time ? `${date}T${time}` : `${date}T09:00`;
+    reschedule.mutate(
+      {
+        taskId: task.id,
+        dueDate,
+        title: task.title,
+        description: task.description,
+        durationMin: task.durationMin,
+        googleEventId: task.googleEventId,
+        syncToGoogleCalendar: task.syncToGoogleCalendar,
+      },
+      { onSuccess: () => onOpenChange(false) }
+    );
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogHeader>
+        <DialogTitle>Przełóż zadanie</DialogTitle>
+        <DialogDescription>{task.title}</DialogDescription>
+      </DialogHeader>
+      <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="flex flex-col gap-1.5">
+            <Label>Data</Label>
+            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Godzina</Label>
+            <Select options={TIME_OPTIONS} value={time} onChange={(e) => setTime(e.target.value)} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Anuluj</Button>
+          <Button onClick={handleSave} disabled={!date || reschedule.isPending}>
+            {reschedule.isPending ? "Zapisywanie…" : "Zapisz"}
+          </Button>
+        </DialogFooter>
+      </div>
+    </Dialog>
+  );
+}
+
+// ─── Task action buttons (shared) ────────────────────────────
+
+function TaskActionButtons({ task }: { task: TaskDTO }) {
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const complete = useCompleteTask();
+  const del = useDeleteTask();
+
+  return (
+    <>
+      <div className="flex shrink-0 items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => complete.mutate(task.id)}
+          disabled={complete.isPending}
+          title="Oznacz jako wykonane"
+          className="flex h-7 w-7 items-center justify-center rounded-full border border-emerald-500/40 text-emerald-500 transition-all hover:bg-emerald-500 hover:text-white cursor-pointer"
+        >
+          <Check className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setRescheduleOpen(true)}
+          title="Przełóż"
+          className="flex h-7 w-7 items-center justify-center rounded-full border border-amber-500/40 text-amber-500 transition-all hover:bg-amber-500 hover:text-white cursor-pointer"
+        >
+          <Clock className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => del.mutate({ taskId: task.id, googleEventId: task.googleEventId, syncToGoogleCalendar: task.syncToGoogleCalendar })}
+          disabled={del.isPending}
+          title="Usuń"
+          className="flex h-7 w-7 items-center justify-center rounded-full border border-red-500/40 text-red-500 transition-all hover:bg-red-500 hover:text-white cursor-pointer"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      <RescheduleDialog task={task} open={rescheduleOpen} onOpenChange={setRescheduleOpen} />
+    </>
+  );
+}
+
+function TodayTimeline({ tasks }: { tasks: TaskDTO[] }) {
   if (tasks.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
@@ -222,16 +350,8 @@ function TodayTimeline({ tasks }: { tasks: TaskDTO[] }) {
             </div>
           </div>
 
-          {/* Complete button */}
-          <button
-            type="button"
-            onClick={() => complete.mutate(task.id)}
-            disabled={complete.isPending}
-            title="Oznacz jako wykonane"
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-primary/40 text-primary/60 transition-all hover:bg-primary hover:text-primary-foreground cursor-pointer"
-          >
-            <Check className="h-3.5 w-3.5" />
-          </button>
+          {/* Action buttons */}
+          <TaskActionButtons task={task} />
         </div>
       ))}
     </div>

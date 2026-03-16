@@ -77,6 +77,19 @@ export function CreateTaskDialog({
 
   const syncEnabled = watch("syncToGoogleCalendar");
 
+  // Time options with 15-min intervals (06:00 – 21:00)
+  const timeOptions = (() => {
+    const opts = [{ value: "", label: "Bez godziny" }];
+    for (let h = 6; h <= 21; h++) {
+      for (let m = 0; m < 60; m += 15) {
+        const hh = String(h).padStart(2, "0");
+        const mm = String(m).padStart(2, "0");
+        opts.push({ value: `${hh}:${mm}`, label: `${hh}:${mm}` });
+      }
+    }
+    return opts;
+  })();
+
   const onClientChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedId = e.target.value;
     const client = clients?.find((c) => c.id === selectedId);
@@ -151,14 +164,32 @@ export function CreateTaskDialog({
           )}
         </div>
 
-        {/* Due date + Duration */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {/* Due date + time + duration */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="dueDate">Termin</Label>
+            <Label htmlFor="dueDate">Data</Label>
             <Input
               id="dueDate"
-              type="datetime-local"
-              {...register("dueDate")}
+              type="date"
+              value={watch("dueDate")?.split("T")[0] ?? ""}
+              onChange={(e) => {
+                const date = e.target.value;
+                const time = watch("dueDate")?.split("T")[1] ?? "";
+                setValue("dueDate", date && time ? `${date}T${time}` : date ? `${date}T09:00` : "");
+              }}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="dueTime">Godzina</Label>
+            <Select
+              id="dueTime"
+              options={timeOptions}
+              value={watch("dueDate")?.split("T")[1] ?? ""}
+              onChange={(e) => {
+                const date = watch("dueDate")?.split("T")[0] ?? "";
+                const time = e.target.value;
+                setValue("dueDate", date && time ? `${date}T${time}` : date ? date : "");
+              }}
             />
           </div>
           <div className="flex flex-col gap-1.5">

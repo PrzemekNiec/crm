@@ -63,6 +63,9 @@ export function CreateClientDialog({
       mainNote: "",
       source: "organic",
       referralName: "",
+      leadSource: "",
+      bankPrimary: "",
+      tags: [],
     },
   });
 
