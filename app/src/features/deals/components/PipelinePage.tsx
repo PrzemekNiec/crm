@@ -1,15 +1,4 @@
 import { useState, useMemo } from "react";
-import {
-  DndContext,
-  DragOverlay,
-  useDroppable,
-  useDraggable,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragStartEvent,
-  type DragEndEvent,
-} from "@dnd-kit/core";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/useAuthStore";
 import {
@@ -34,7 +23,13 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Badge } from "@/components/ui/Badge";
-import { Plus, GripVertical, User, Clock } from "lucide-react";
+import {
+  Plus,
+  User,
+  Clock,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -75,20 +70,23 @@ function formatDate(iso: string): string {
   });
 }
 
+function getAdjacentStages(stage: DealStage): {
+  prev: DealStage | null;
+  next: DealStage | null;
+} {
+  const idx = DEAL_STAGES.indexOf(stage);
+  return {
+    prev: idx > 0 ? DEAL_STAGES[idx - 1] : null,
+    next: idx < DEAL_STAGES.length - 1 ? DEAL_STAGES[idx + 1] : null,
+  };
+}
+
 // ─── Main page ───────────────────────────────────────────────
 
 export function PipelinePage() {
   const { data: deals = [], isLoading } = useDeals();
-  const updateStage = useUpdateDealStage();
-  const uid = useAuthStore((s) => s.user?.uid);
-  const qc = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
-  const [activeDealId, setActiveDealId] = useState<string | null>(null);
   const [historyDeal, setHistoryDeal] = useState<DealDTO | null>(null);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
-  );
 
   const dealsByStage = useMemo(() => {
     const grouped: Record<DealStage, DealDTO[]> = {
@@ -106,33 +104,6 @@ export function PipelinePage() {
     }
     return grouped;
   }, [deals]);
-
-  const activeDeal = activeDealId
-    ? deals.find((d) => d.id === activeDealId) ?? null
-    : null;
-
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveDealId(event.active.id as string);
-  };
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    setActiveDealId(null);
-    const { active, over } = event;
-    if (!over) return;
-
-    const dealId = active.id as string;
-    const newStage = over.id as DealStage;
-    const deal = deals.find((d) => d.id === dealId);
-    if (!deal || deal.stage === newStage) return;
-
-    if (uid) {
-      qc.setQueryData<DealDTO[]>(dealsQueryKey(uid), (old) =>
-        old?.map((d) => (d.id === dealId ? { ...d, stage: newStage } : d))
-      );
-    }
-
-    updateStage.mutate({ dealId, stage: newStage });
-  };
 
   const stageTotal = (stage: DealStage) =>
     dealsByStage[stage].reduce((sum, d) => sum + d.value, 0);
@@ -161,34 +132,17 @@ export function PipelinePage() {
           ))}
         </div>
       ) : (
-        <DndContext
-          sensors={sensors}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-6 items-start">
-            {DEAL_STAGES.map((stage) => (
-              <StageColumn
-                key={stage}
-                stage={stage}
-                deals={dealsByStage[stage]}
-                total={stageTotal(stage)}
-                activeDealId={activeDealId}
-                onCardClick={setHistoryDeal}
-              />
-            ))}
-          </div>
-
-          <DragOverlay dropAnimation={null}>
-            {activeDeal && (
-              <DealCardContent
-                deal={activeDeal}
-                stageColor={DEAL_STAGE_COLORS[activeDeal.stage]}
-                isDragging
-              />
-            )}
-          </DragOverlay>
-        </DndContext>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-6 items-start">
+          {DEAL_STAGES.map((stage) => (
+            <StageColumn
+              key={stage}
+              stage={stage}
+              deals={dealsByStage[stage]}
+              total={stageTotal(stage)}
+              onCardClick={setHistoryDeal}
+            />
+          ))}
+        </div>
       )}
 
       <AddDealDialog open={addOpen} onOpenChange={setAddOpen} />
@@ -197,23 +151,20 @@ export function PipelinePage() {
   );
 }
 
-// ─── Stage column (droppable) ────────────────────────────────
+// ─── Stage column ────────────────────────────────────────────
 
 function StageColumn({
   stage,
   deals,
   total,
-  activeDealId,
   onCardClick,
 }: {
   stage: DealStage;
   deals: DealDTO[];
   total: number;
-  activeDealId: string | null;
   onCardClick: (deal: DealDTO) => void;
 }) {
   const color = DEAL_STAGE_COLORS[stage];
-  const { isOver, setNodeRef } = useDroppable({ id: stage });
 
   return (
     <div className="rounded-xl p-3" style={GLASS}>
@@ -234,23 +185,18 @@ function StageColumn({
 
       {total > 0 && (
         <p className="mb-2 text-[10px] text-muted-foreground">
-          <span className="font-medium text-primary">{formatCurrency(total)}</span>
+          <span className="font-medium text-primary">
+            {formatCurrency(total)}
+          </span>
         </p>
       )}
 
-      <div
-        ref={setNodeRef}
-        className={cn(
-          "min-h-[60px] space-y-2 rounded-lg p-1 transition-colors",
-          isOver && "bg-white/[0.06] ring-1 ring-primary/30"
-        )}
-      >
+      <div className="min-h-[60px] space-y-2">
         {deals.map((deal) => (
           <DealCard
             key={deal.id}
             deal={deal}
             stageColor={color}
-            isHidden={deal.id === activeDealId}
             onClick={() => onCardClick(deal)}
           />
         ))}
@@ -259,68 +205,48 @@ function StageColumn({
   );
 }
 
-// ─── Deal card (draggable wrapper) ───────────────────────────
+// ─── Deal card ───────────────────────────────────────────────
 
 function DealCard({
   deal,
   stageColor,
-  isHidden,
   onClick,
 }: {
   deal: DealDTO;
   stageColor: string;
-  isHidden: boolean;
   onClick: () => void;
 }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: deal.id,
-  });
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={{ opacity: isHidden || isDragging ? 0.3 : 1 }}
-      onClick={onClick}
-    >
-      <DealCardContent
-        deal={deal}
-        stageColor={stageColor}
-        dragHandleProps={{ ...attributes, ...listeners }}
-      />
-    </div>
-  );
-}
-
-// ─── Deal card content ───────────────────────────────────────
-
-function DealCardContent({
-  deal,
-  stageColor,
-  isDragging,
-  dragHandleProps,
-}: {
-  deal: DealDTO;
-  stageColor: string;
-  isDragging?: boolean;
-  dragHandleProps?: Record<string, unknown>;
-}) {
+  const updateStage = useUpdateDealStage();
   const toggleCP = useToggleCPRegistration();
+  const uid = useAuthStore((s) => s.user?.uid);
+  const qc = useQueryClient();
+
+  const { prev, next } = getAdjacentStages(deal.stage);
   const isWyplata = deal.stage === "wyplata";
   const isCP = deal.isRegisteredInCP ?? false;
+
+  const moveTo = (newStage: DealStage) => {
+    // Optimistic update
+    if (uid) {
+      qc.setQueryData<DealDTO[]>(dealsQueryKey(uid), (old) =>
+        old?.map((d) =>
+          d.id === deal.id ? { ...d, stage: newStage } : d
+        )
+      );
+    }
+    updateStage.mutate({ dealId: deal.id, stage: newStage });
+  };
 
   // Glow for Wypłata stage
   const glowShadow = isWyplata
     ? isCP
-      ? "0 0 15px rgba(34, 197, 94, 0.6)"   // green glow
-      : "0 0 15px rgba(234, 179, 8, 0.6)"    // gold glow
+      ? "0 0 15px rgba(34, 197, 94, 0.6)"
+      : "0 0 15px rgba(234, 179, 8, 0.6)"
     : undefined;
 
   return (
     <div
-      className={cn(
-        "rounded-lg p-2.5 cursor-pointer transition-shadow",
-        isDragging && "shadow-xl ring-1 ring-primary/30"
-      )}
+      className="rounded-lg p-2.5 cursor-pointer transition-shadow"
       style={{
         ...GLASS_CARD,
         borderLeft: `3px solid ${stageColor}`,
@@ -328,56 +254,89 @@ function DealCardContent({
           ? `${GLASS_CARD.boxShadow}, ${glowShadow}`
           : GLASS_CARD.boxShadow,
       }}
+      onClick={onClick}
     >
-      <div className="flex items-start gap-1.5">
-        <div
-          {...dragHandleProps}
-          className="mt-0.5 text-muted-foreground/50 hover:text-muted-foreground cursor-grab active:cursor-grabbing"
+      {/* Content */}
+      <div className="min-w-0">
+        <p className="text-xs font-medium text-foreground truncate">
+          {deal.title}
+        </p>
+        <p className="mt-0.5 text-sm font-semibold text-primary">
+          {formatCurrency(deal.value)}
+        </p>
+        {deal.clientName && (
+          <div className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+            <User className="h-3 w-3" />
+            <span className="truncate">{deal.clientName}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Stage arrows */}
+      <div
+        className="mt-2 flex items-center justify-between"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          disabled={!prev}
+          onClick={() => prev && moveTo(prev)}
+          className={cn(
+            "flex h-6 w-6 items-center justify-center rounded-full border transition-colors cursor-pointer",
+            prev
+              ? "border-white/20 text-muted-foreground hover:bg-white/10 hover:text-foreground"
+              : "border-transparent text-transparent cursor-default"
+          )}
+          title={prev ? `← ${DEAL_STAGE_LABELS[prev]}` : undefined}
+        >
+          <ChevronLeft className="h-3.5 w-3.5" />
+        </button>
+
+        <span className="text-[9px] text-muted-foreground/60 font-medium">
+          {DEAL_STAGE_LABELS[deal.stage]}
+        </span>
+
+        <button
+          type="button"
+          disabled={!next}
+          onClick={() => next && moveTo(next)}
+          className={cn(
+            "flex h-6 w-6 items-center justify-center rounded-full border transition-colors cursor-pointer",
+            next
+              ? "border-white/20 text-muted-foreground hover:bg-white/10 hover:text-foreground"
+              : "border-transparent text-transparent cursor-default"
+          )}
+          title={next ? `→ ${DEAL_STAGE_LABELS[next]}` : undefined}
+        >
+          <ChevronRight className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {/* CP checkbox — only in Wypłata */}
+      {isWyplata && (
+        <label
+          className="mt-2 flex items-center gap-1.5 cursor-pointer"
           onClick={(e) => e.stopPropagation()}
         >
-          <GripVertical className="h-3.5 w-3.5" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium text-foreground truncate">
-            {deal.title}
-          </p>
-          <p className="mt-0.5 text-sm font-semibold text-primary">
-            {formatCurrency(deal.value)}
-          </p>
-          {deal.clientName && (
-            <div className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground">
-              <User className="h-3 w-3" />
-              <span className="truncate">{deal.clientName}</span>
-            </div>
-          )}
-
-          {/* CP checkbox — only in Wypłata stage */}
-          {isWyplata && (
-            <label
-              className="mt-2 flex items-center gap-1.5 cursor-pointer"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <input
-                type="checkbox"
-                checked={isCP}
-                onChange={(e) => {
-                  e.stopPropagation();
-                  toggleCP.mutate({ dealId: deal.id, value: !isCP });
-                }}
-                className="h-3.5 w-3.5 rounded border-white/20 bg-white/10 accent-emerald-500"
-              />
-              <span
-                className={cn(
-                  "text-[10px] font-medium",
-                  isCP ? "text-emerald-400" : "text-amber-400"
-                )}
-              >
-                {isCP ? "Zarejestrowano w CP" : "Rejestracja CP"}
-              </span>
-            </label>
-          )}
-        </div>
-      </div>
+          <input
+            type="checkbox"
+            checked={isCP}
+            onChange={(e) => {
+              e.stopPropagation();
+              toggleCP.mutate({ dealId: deal.id, value: !isCP });
+            }}
+            className="h-3.5 w-3.5 rounded border-white/20 bg-white/10 accent-emerald-500"
+          />
+          <span
+            className={cn(
+              "text-[10px] font-medium",
+              isCP ? "text-emerald-400" : "text-amber-400"
+            )}
+          >
+            {isCP ? "Zarejestrowano w CP" : "Rejestracja CP"}
+          </span>
+        </label>
+      )}
     </div>
   );
 }
@@ -447,7 +406,6 @@ function DealHistoryModal({
                 const isLast = i === deal.history.length - 1;
                 return (
                   <div key={i} className="relative">
-                    {/* Dot */}
                     <div
                       className={cn(
                         "absolute -left-[21px] top-1 h-3 w-3 rounded-full border-2 border-background",
@@ -467,7 +425,6 @@ function DealHistoryModal({
             </div>
           )}
         </div>
-
       </div>
     </Dialog>
   );
