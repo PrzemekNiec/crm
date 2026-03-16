@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { useGoogleIntegration } from "../api/integrations";
 import { OAUTH_STATUS_LABELS } from "../types/integration";
-import { Calendar, Link2, Loader2, Settings } from "lucide-react";
+import { Calendar, Link2, Loader2, RefreshCw, Settings } from "lucide-react";
 import { useCalendarAuth } from "@/features/calendar/hooks/useCalendarAuth";
+import { useCalendarWatch } from "@/features/calendar/hooks/useCalendarWatch";
 
 type Tab = "general" | "integrations";
 
@@ -74,6 +75,7 @@ function GeneralTab() {
 function IntegrationsTab() {
   const { data: integration, isLoading } = useGoogleIntegration();
   const { startOAuth, isConnecting } = useCalendarAuth();
+  const { registerWatch, isRegistering } = useCalendarWatch();
 
   if (isLoading) {
     return (
@@ -92,6 +94,7 @@ function IntegrationsTab() {
   const connected = integration?.connected ?? false;
   const oauthStatus = integration?.oauthStatus ?? "disconnected";
   const calendarName = integration?.calendar.selectedCalendarName;
+  const watchChannelId = integration?.calendar.watchChannelId ?? null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -129,24 +132,64 @@ function IntegrationsTab() {
 
             {/* Calendar info or connect button */}
             {connected ? (
-              <div
-                className="mt-4 rounded-md px-4 py-3"
-                style={{
-                  background: "rgba(30, 41, 59, 0.6)",
-                  border: "1px solid rgba(255, 255, 255, 0.06)",
-                }}
-              >
-                {calendarName ? (
-                  <p className="text-sm text-foreground">
-                    <span className="text-muted-foreground">Wybrany kalendarz: </span>
-                    <span className="font-medium">{calendarName}</span>
-                  </p>
-                ) : (
-                  <p className="text-sm text-warning-foreground">
-                    Nie wybrano kalendarza. Kliknij poniżej, aby wybrać kalendarz do synchronizacji.
-                  </p>
-                )}
-              </div>
+              <>
+                <div
+                  className="mt-4 rounded-md px-4 py-3"
+                  style={{
+                    background: "rgba(30, 41, 59, 0.6)",
+                    border: "1px solid rgba(255, 255, 255, 0.06)",
+                  }}
+                >
+                  {calendarName ? (
+                    <p className="text-sm text-foreground">
+                      <span className="text-muted-foreground">Wybrany kalendarz: </span>
+                      <span className="font-medium">{calendarName}</span>
+                    </p>
+                  ) : (
+                    <p className="text-sm text-warning-foreground">
+                      Nie wybrano kalendarza. Kliknij poniżej, aby wybrać kalendarz do synchronizacji.
+                    </p>
+                  )}
+                </div>
+
+                {/* Two-way sync */}
+                <div
+                  className="mt-3 rounded-md px-4 py-3"
+                  style={{
+                    background: "rgba(30, 41, 59, 0.6)",
+                    border: "1px solid rgba(255, 255, 255, 0.06)",
+                  }}
+                >
+                  {watchChannelId ? (
+                    <div className="flex items-center gap-2">
+                      <RefreshCw className="h-4 w-4 text-emerald-500" />
+                      <p className="text-sm text-foreground">
+                        Synchronizacja dwukierunkowa jest{" "}
+                        <span className="font-medium text-emerald-400">aktywna</span>
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-sm text-muted-foreground">
+                        Włącz synchronizację dwukierunkową, aby zmiany w Google Calendar aktualizowały zadania w CRM.
+                      </p>
+                      <Button
+                        size="sm"
+                        disabled={isRegistering}
+                        onClick={registerWatch}
+                        className="shrink-0"
+                      >
+                        {isRegistering ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-4 w-4" />
+                        )}
+                        {isRegistering ? "Aktywowanie…" : "Włącz dwukierunkową synchronizację"}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </>
             ) : (
               <Button
                 className="mt-4"

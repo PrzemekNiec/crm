@@ -39,6 +39,7 @@ const integrationConverter: FirestoreDataConverter<GoogleIntegration> = {
         enabled: d.calendar?.enabled ?? false,
         selectedCalendarId: d.calendar?.selectedCalendarId ?? null,
         selectedCalendarName: d.calendar?.selectedCalendarName ?? null,
+        watchChannelId: d.calendar?.watchChannelId ?? null,
       },
     };
   },

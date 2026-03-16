@@ -17,6 +17,7 @@ export const calendarSettingsSchema = z.object({
   enabled: z.boolean(),
   selectedCalendarId: z.string().nullable(),
   selectedCalendarName: z.string().nullable(),
+  watchChannelId: z.string().nullable().optional(),
 });
 
 export type CalendarSettings = z.infer<typeof calendarSettingsSchema>;
@@ -42,5 +43,6 @@ export const DEFAULT_GOOGLE_INTEGRATION: GoogleIntegration = {
     enabled: false,
     selectedCalendarId: null,
     selectedCalendarName: null,
+    watchChannelId: null,
   },
 };
