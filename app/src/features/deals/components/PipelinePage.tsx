@@ -34,7 +34,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Badge } from "@/components/ui/Badge";
-import { Plus, GripVertical, User, Clock, X } from "lucide-react";
+import { Plus, GripVertical, User, Clock } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -399,25 +399,16 @@ function DealHistoryModal({
     <Dialog open={!!deal} onOpenChange={(open) => !open && onClose()}>
       <div className="space-y-4">
         {/* Header */}
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold text-foreground">
-              {deal.title}
-            </h2>
-            {deal.clientName && (
-              <p className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground">
-                <User className="h-3.5 w-3.5" />
-                {deal.clientName}
-              </p>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-muted-foreground hover:text-foreground cursor-pointer"
-          >
-            <X className="h-5 w-5" />
-          </button>
+        <div className="pr-6">
+          <h2 className="text-lg font-semibold text-foreground">
+            {deal.title}
+          </h2>
+          {deal.clientName && (
+            <p className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground">
+              <User className="h-3.5 w-3.5" />
+              {deal.clientName}
+            </p>
+          )}
         </div>
 
         {/* Stats */}
@@ -477,12 +468,6 @@ function DealHistoryModal({
           )}
         </div>
 
-        {/* Close button */}
-        <div className="flex justify-end pt-2">
-          <Button variant="ghost" onClick={onClose}>
-            Zamknij
-          </Button>
-        </div>
       </div>
     </Dialog>
   );
