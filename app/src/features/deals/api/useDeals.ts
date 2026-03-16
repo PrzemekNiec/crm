@@ -10,6 +10,7 @@ import {
   toggleCPRegistration,
   updateDealCommission,
   archiveDeal,
+  rejectDeal,
   dealsQueryKey,
 } from "./deals";
 import type { DealFormValues, DealStage, SettleDealValues } from "../types/deal";
@@ -190,6 +191,33 @@ export function useArchiveDeal() {
     },
     onError: () => {
       toast.error("Nie udało się zarchiwizować szansy");
+    },
+  });
+}
+
+// ─── Reject deal (negative decision) ───────────────────────
+
+export function useRejectDeal() {
+  const uid = useAuthStore((s) => s.user?.uid);
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      dealId,
+      reason,
+    }: {
+      dealId: string;
+      reason: string;
+    }) => {
+      if (!uid) throw new Error("Brak zalogowanego użytkownika");
+      return rejectDeal(uid, dealId, reason);
+    },
+    onSuccess: () => {
+      if (uid) qc.invalidateQueries({ queryKey: dealsQueryKey(uid) });
+      toast.success("Wniosek odrzucony — przeniesiony do archiwum");
+    },
+    onError: () => {
+      toast.error("Nie udało się odrzucić wniosku");
     },
   });
 }

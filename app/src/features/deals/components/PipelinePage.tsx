@@ -10,6 +10,7 @@ import {
   useToggleCPRegistration,
   useUpdateDealCommission,
   useArchiveDeal,
+  useRejectDeal,
 } from "../api/useDeals";
 import { dealsQueryKey } from "../api/deals";
 import { useClients } from "@/features/clients/api/useClients";
@@ -39,6 +40,7 @@ import {
   Pencil,
   Check,
   Archive,
+  XCircle,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useForm } from "react-hook-form";
@@ -434,7 +436,12 @@ function ArchiveRow({
   return (
     <tr className="border-t border-white/[0.05] hover:bg-white/[0.03] transition-colors">
       <td className="px-4 py-2.5 text-foreground font-medium">
-        {deal.clientName ?? "—"}
+        <span>{deal.clientName ?? "—"}</span>
+        {deal.isRejected && (
+          <Badge variant="destructive" className="ml-1.5 text-[9px] px-1.5 py-0">
+            Odrzucony
+          </Badge>
+        )}
       </td>
       <td className="px-4 py-2.5 text-foreground">
         {deal.bank ?? "—"}
@@ -493,7 +500,9 @@ function ArchiveRow({
         {clientSource}
       </td>
       <td className="px-4 py-2.5 text-muted-foreground text-xs max-w-[200px] truncate">
-        {deal.notes || "—"}
+        {deal.isRejected && deal.rejectionReason
+          ? <span className="text-red-400">{deal.rejectionReason}</span>
+          : (deal.notes || "—")}
       </td>
     </tr>
   );
@@ -724,10 +733,13 @@ function DealHistoryModal({
   onClose: () => void;
 }) {
   const updateNotes = useUpdateDealNotes();
+  const reject = useRejectDeal();
   const uid = useAuthStore((s) => s.user?.uid);
   const qc = useQueryClient();
   const [notesValue, setNotesValue] = useState("");
   const [notesDirty, setNotesDirty] = useState(false);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
 
   // Sync local state when deal changes
   useEffect(() => {
@@ -847,6 +859,75 @@ function DealHistoryModal({
             </div>
           )}
         </div>
+
+        {/* Rejection section — only for analiza & decyzja */}
+        {(deal.stage === "analiza" || deal.stage === "decyzja") && (
+          <div
+            className="rounded-lg p-3 space-y-2"
+            style={{
+              background: "rgba(239, 68, 68, 0.08)",
+              border: "1px solid rgba(239, 68, 68, 0.3)",
+            }}
+          >
+            {!rejectOpen ? (
+              <button
+                type="button"
+                onClick={() => setRejectOpen(true)}
+                className="flex items-center gap-1.5 text-sm font-medium text-red-400 hover:text-red-300 transition-colors cursor-pointer"
+              >
+                <XCircle className="h-4 w-4" />
+                Decyzja negatywna
+              </button>
+            ) : (
+              <>
+                <p className="text-sm font-semibold text-red-400 flex items-center gap-1.5">
+                  <XCircle className="h-4 w-4" />
+                  Decyzja negatywna
+                </p>
+                <textarea
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="Powód odrzucenia (opcjonalnie)..."
+                  rows={2}
+                  className="w-full rounded-md border border-red-500/30 bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-red-500/50 resize-y"
+                />
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setRejectOpen(false);
+                      setRejectReason("");
+                    }}
+                  >
+                    Anuluj
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={reject.isPending}
+                    onClick={() => {
+                      reject.mutate(
+                        { dealId: deal.id, reason: rejectReason },
+                        {
+                          onSuccess: () => {
+                            setRejectOpen(false);
+                            setRejectReason("");
+                            onClose();
+                          },
+                        }
+                      );
+                    }}
+                    className="bg-red-600 hover:bg-red-700 text-white"
+                  >
+                    {reject.isPending ? "Odrzucanie..." : "Potwierdź odrzucenie"}
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </Dialog>
   );

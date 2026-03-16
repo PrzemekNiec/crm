@@ -78,6 +78,9 @@ const dealConverter: FirestoreDataConverter<DealDTO> = {
       commissionRate: d.commissionRate ?? undefined,
       commissionValue: d.commissionValue ?? undefined,
       payoutDate: d.payoutDate ?? undefined,
+      // Rejection fields
+      isRejected: d.isRejected ?? false,
+      rejectionReason: d.rejectionReason ?? undefined,
     };
   },
 };
@@ -221,6 +224,23 @@ export async function archiveDeal(
     commissionValue: values.commissionValue,
     payoutDate: values.payoutDate,
     notes: values.notes ?? "",
+    updatedAt: serverTimestamp(),
+  });
+}
+
+// ─── Reject deal (negative decision) ───────────────────────
+
+export async function rejectDeal(
+  uid: string,
+  dealId: string,
+  reason: string
+): Promise<void> {
+  const db = getDb();
+  const ref = doc(db, "users", uid, "deals", dealId);
+  await updateDoc(ref, {
+    isArchived: true,
+    isRejected: true,
+    rejectionReason: reason || "",
     updatedAt: serverTimestamp(),
   });
 }

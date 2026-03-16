@@ -80,4 +80,7 @@ export interface DealDTO {
   commissionRate?: number;
   commissionValue?: number;
   payoutDate?: string; // YYYY-MM
+  // Rejection fields
+  isRejected?: boolean;
+  rejectionReason?: string;
 }
