@@ -5,6 +5,7 @@ import {
   fetchDeals,
   createDeal,
   updateDealStage,
+  toggleCPRegistration,
   dealsQueryKey,
 } from "./deals";
 import type { DealFormValues, DealStage } from "../types/deal";
@@ -64,6 +65,32 @@ export function useUpdateDealStage() {
     },
     onError: () => {
       toast.error("Nie udało się zaktualizować etapu");
+    },
+  });
+}
+
+// ─── Toggle CP registration ────────────────────────────────
+
+export function useToggleCPRegistration() {
+  const uid = useAuthStore((s) => s.user?.uid);
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      dealId,
+      value,
+    }: {
+      dealId: string;
+      value: boolean;
+    }) => {
+      if (!uid) throw new Error("Brak zalogowanego użytkownika");
+      return toggleCPRegistration(uid, dealId, value);
+    },
+    onSuccess: () => {
+      if (uid) qc.invalidateQueries({ queryKey: dealsQueryKey(uid) });
+    },
+    onError: () => {
+      toast.error("Nie udało się zaktualizować rejestracji CP");
     },
   });
 }

@@ -512,8 +512,8 @@ export function DashboardPage() {
   const { data: deals = [] } = useDeals();
 
   const financialStats = useMemo(() => {
-    const active = deals.filter((d) => d.stage !== "success");
-    const closed = deals.filter((d) => d.stage === "success");
+    const active = deals.filter((d) => d.stage !== "wyplata");
+    const closed = deals.filter((d) => d.stage === "wyplata");
     return {
       pipelineValue: active.reduce((sum, d) => sum + d.value, 0),
       closedValue: closed.reduce((sum, d) => sum + d.value, 0),

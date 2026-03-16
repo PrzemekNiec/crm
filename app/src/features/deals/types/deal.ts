@@ -3,27 +3,40 @@ import { z } from "zod";
 // ─── Pipeline stages ─────────────────────────────────────────
 
 export const DEAL_STAGES = [
-  "contact",
-  "analysis",
-  "decision",
-  "success",
+  "potencjalne",
+  "fi",
+  "analiza",
+  "decyzja",
+  "umowa",
+  "wyplata",
 ] as const;
 
 export type DealStage = (typeof DEAL_STAGES)[number];
 
 export const DEAL_STAGE_LABELS: Record<DealStage, string> = {
-  contact: "Nowy Wniosek",
-  analysis: "Analiza / Dokumenty",
-  decision: "Oczekiwanie na decyzję",
-  success: "Uruchomiony / Sukces",
+  potencjalne: "Potencjalne",
+  fi: "FI",
+  analiza: "Wysłane / analiza",
+  decyzja: "Decyzja",
+  umowa: "Umowa",
+  wyplata: "Wypłata",
 };
 
 export const DEAL_STAGE_COLORS: Record<DealStage, string> = {
-  contact: "#60a5fa",    // blue-400
-  analysis: "#fbbf24",   // amber-400
-  decision: "#c084fc",   // purple-400
-  success: "#34d399",    // emerald-400
+  potencjalne: "#60a5fa",  // blue-400
+  fi: "#fbbf24",           // amber-400
+  analiza: "#c084fc",      // purple-400
+  decyzja: "#f472b6",      // pink-400
+  umowa: "#fb923c",        // orange-400
+  wyplata: "#34d399",      // emerald-400
 };
+
+// ─── History entry ───────────────────────────────────────────
+
+export interface DealHistoryEntry {
+  stage: DealStage;
+  timestamp: string; // ISO
+}
 
 // ─── Deal schema ─────────────────────────────────────────────
 
@@ -45,5 +58,7 @@ export interface DealDTO {
   title: string;
   value: number;
   stage: DealStage;
+  isRegisteredInCP?: boolean;
+  history: DealHistoryEntry[];
   createdAt: string; // ISO
 }
