@@ -1,8 +1,9 @@
-import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
 import { defineString } from "firebase-functions/params";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { OAuth2Client } from "google-auth-library";
+import * as crypto from "crypto";
 
 
 initializeApp();
@@ -11,6 +12,7 @@ const db = getFirestore();
 // ─── Environment config ─────────────────────────────────────
 const googleClientId = defineString("GOOGLE_CLIENT_ID");
 const googleClientSecret = defineString("GOOGLE_CLIENT_SECRET");
+const webhookUrl = defineString("CALENDAR_WEBHOOK_URL");
 
 // ─── connectGoogleCalendar ──────────────────────────────────
 // Accepts an auth code from the frontend, exchanges it for
@@ -93,10 +95,11 @@ export const connectGoogleCalendar = onCall(
 );
 
 // ─── Helper: refresh access token if expired ────────────────
+// Base version returns null on failure (safe for webhook context).
 
-async function getValidAccessToken(
+async function tryGetValidAccessToken(
   uid: string
-): Promise<{ accessToken: string; calendarId: string }> {
+): Promise<{ accessToken: string; calendarId: string } | null> {
   const integrationRef = db
     .collection("users")
     .doc(uid)
@@ -104,20 +107,10 @@ async function getValidAccessToken(
     .doc("google_workspace");
 
   const snap = await integrationRef.get();
-  if (!snap.exists) {
-    throw new HttpsError(
-      "failed-precondition",
-      "Brak połączenia z Google Calendar. Połącz konto w Ustawieniach."
-    );
-  }
+  if (!snap.exists) return null;
 
   const data = snap.data()!;
-  if (data.oauthStatus === "reauth_required") {
-    throw new HttpsError(
-      "failed-precondition",
-      "Token Google wygasł. Połącz ponownie konto w Ustawieniach."
-    );
-  }
+  if (data.oauthStatus === "reauth_required") return null;
 
   let accessToken = data.accessToken as string;
   const refreshToken = data.refreshToken as string | null;
@@ -149,14 +142,25 @@ async function getValidAccessToken(
         oauthStatus: "reauth_required",
         updatedAt: FieldValue.serverTimestamp(),
       });
-      throw new HttpsError(
-        "failed-precondition",
-        "Nie udało się odświeżyć tokena Google. Połącz ponownie konto."
-      );
+      return null;
     }
   }
 
   return { accessToken, calendarId };
+}
+
+// Throwing version for onCall functions.
+async function getValidAccessToken(
+  uid: string
+): Promise<{ accessToken: string; calendarId: string }> {
+  const result = await tryGetValidAccessToken(uid);
+  if (!result) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Brak połączenia z Google Calendar lub token wygasł. Połącz ponownie konto."
+    );
+  }
+  return result;
 }
 
 // ─── syncTaskToGoogleCalendar ───────────────────────────────
@@ -356,5 +360,360 @@ export const deleteTaskFromGoogleCalendar = onCall(
 
     console.log(`Calendar event ${googleEventId} deleted for user ${uid}`);
     return { success: true };
+  }
+);
+
+// ─── registerCalendarWatch ──────────────────────────────────
+// Registers a Google Calendar push notification channel and
+// obtains the initial syncToken for incremental sync.
+
+export const registerCalendarWatch = onCall(
+  { region: "europe-west1" },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Musisz być zalogowany.");
+    }
+    const uid = request.auth.uid;
+    const { accessToken, calendarId } = await getValidAccessToken(uid);
+
+    // 1. Get initial syncToken by listing all events (paginate to end)
+    let syncToken: string | null = null;
+    let pageToken: string | undefined;
+
+    do {
+      const params = new URLSearchParams({
+        maxResults: "250",
+        showDeleted: "true",
+      });
+      if (pageToken) params.set("pageToken", pageToken);
+
+      const listRes = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params}`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+
+      if (!listRes.ok) {
+        const err = await listRes.text();
+        console.error("events.list failed:", err);
+        throw new HttpsError("internal", "Nie udało się uzyskać syncToken.");
+      }
+
+      const data = await listRes.json();
+      syncToken = data.nextSyncToken ?? null;
+      pageToken = data.nextPageToken;
+    } while (pageToken);
+
+    if (!syncToken) {
+      throw new HttpsError("internal", "Nie udało się uzyskać syncToken.");
+    }
+
+    // 2. Register watch channel
+    const channelId = crypto.randomUUID();
+    const address = webhookUrl.value();
+
+    const watchRes = await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/watch`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: channelId,
+          type: "web_hook",
+          address,
+        }),
+      }
+    );
+
+    if (!watchRes.ok) {
+      const err = await watchRes.text();
+      console.error("events.watch failed:", err);
+      throw new HttpsError(
+        "internal",
+        "Nie udało się zarejestrować webhooka kalendarza."
+      );
+    }
+
+    const watchData = await watchRes.json();
+
+    // 3. Save watch metadata + syncToken
+    const integrationRef = db
+      .collection("users")
+      .doc(uid)
+      .collection("integrations")
+      .doc("google_workspace");
+
+    await integrationRef.update({
+      "calendar.watchChannelId": channelId,
+      "calendar.watchResourceId": watchData.resourceId ?? null,
+      "calendar.syncToken": syncToken,
+      "calendar.watchExpiration": watchData.expiration
+        ? Number(watchData.expiration)
+        : null,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    // 4. Create channelId → uid mapping for webhook lookup
+    await db.collection("calendarWatchChannels").doc(channelId).set({
+      uid,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+
+    console.log(
+      `Calendar watch registered for user ${uid}, channelId: ${channelId}`
+    );
+
+    return { success: true, channelId };
+  }
+);
+
+// ─── googleCalendarWebhook ──────────────────────────────────
+// HTTP endpoint that receives push notifications from Google
+// Calendar. Processes changed events and updates CRM tasks.
+
+export const googleCalendarWebhook = onRequest(
+  { region: "europe-west1", invoker: "public" },
+  async (req, res) => {
+    // Only accept POST
+    if (req.method !== "POST") {
+      res.status(405).send("Method not allowed");
+      return;
+    }
+
+    const channelId = req.headers["x-goog-channel-id"] as string | undefined;
+    const resourceState = req.headers["x-goog-resource-state"] as
+      | string
+      | undefined;
+
+    // Initial sync confirmation — just acknowledge
+    if (resourceState === "sync") {
+      console.log("Watch channel confirmed (sync notification)");
+      res.status(200).send("OK");
+      return;
+    }
+
+    if (!channelId) {
+      console.error("Webhook: missing x-goog-channel-id");
+      res.status(200).send("OK");
+      return;
+    }
+
+    try {
+      // 1. Find user by channelId
+      const channelSnap = await db
+        .collection("calendarWatchChannels")
+        .doc(channelId)
+        .get();
+
+      if (!channelSnap.exists) {
+        console.error(`Webhook: no user for channelId ${channelId}`);
+        res.status(200).send("OK");
+        return;
+      }
+
+      const uid = channelSnap.data()!.uid as string;
+
+      // 2. Get integration data
+      const integrationRef = db
+        .collection("users")
+        .doc(uid)
+        .collection("integrations")
+        .doc("google_workspace");
+
+      const integrationSnap = await integrationRef.get();
+      if (!integrationSnap.exists) {
+        console.error(`Webhook: no integration doc for user ${uid}`);
+        res.status(200).send("OK");
+        return;
+      }
+
+      const integrationData = integrationSnap.data()!;
+      const syncToken = integrationData.calendar?.syncToken as
+        | string
+        | undefined;
+      const calendarId =
+        (integrationData.selectedCalendarId as string) || "primary";
+
+      if (!syncToken) {
+        console.error(`Webhook: no syncToken for user ${uid}`);
+        res.status(200).send("OK");
+        return;
+      }
+
+      // 3. Get valid access token
+      const tokenResult = await tryGetValidAccessToken(uid);
+      if (!tokenResult) {
+        console.error(`Webhook: cannot get access token for user ${uid}`);
+        res.status(200).send("OK");
+        return;
+      }
+
+      // 4. Incremental sync — fetch only changed events
+      let newSyncToken: string | null = null;
+      let pageToken: string | undefined;
+      const changedEvents: Array<{
+        id: string;
+        status: string;
+        summary?: string;
+        description?: string;
+        start?: { dateTime?: string; date?: string };
+        end?: { dateTime?: string; date?: string };
+      }> = [];
+
+      do {
+        const params = new URLSearchParams({ syncToken });
+        if (pageToken) params.set("pageToken", pageToken);
+
+        const listRes = await fetch(
+          `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params}`,
+          {
+            headers: {
+              Authorization: `Bearer ${tokenResult.accessToken}`,
+            },
+          }
+        );
+
+        if (listRes.status === 410) {
+          // syncToken expired — need full re-sync
+          console.warn(
+            `Webhook: syncToken expired for user ${uid}, clearing`
+          );
+          await integrationRef.update({
+            "calendar.syncToken": null,
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+          res.status(200).send("OK");
+          return;
+        }
+
+        if (!listRes.ok) {
+          const err = await listRes.text();
+          console.error("Webhook: events.list failed:", err);
+          res.status(200).send("OK");
+          return;
+        }
+
+        const data = await listRes.json();
+        if (data.items) {
+          changedEvents.push(...data.items);
+        }
+        newSyncToken = data.nextSyncToken ?? null;
+        pageToken = data.nextPageToken;
+      } while (pageToken);
+
+      // 5. Save new syncToken
+      if (newSyncToken) {
+        await integrationRef.update({
+          "calendar.syncToken": newSyncToken,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
+
+      // 6. Process changed events — only our CRM events (prefix "crmtask")
+      const crmEvents = changedEvents.filter(
+        (e) => e.id && e.id.startsWith("crmtask")
+      );
+
+      if (crmEvents.length === 0) {
+        console.log(`Webhook: no CRM events changed for user ${uid}`);
+        res.status(200).send("OK");
+        return;
+      }
+
+      console.log(
+        `Webhook: processing ${crmEvents.length} CRM events for user ${uid}`
+      );
+
+      const tasksRef = db.collection("users").doc(uid).collection("tasks");
+
+      for (const event of crmEvents) {
+        // Find task by googleEventId
+        const taskQuery = await tasksRef
+          .where("googleEventId", "==", event.id)
+          .limit(1)
+          .get();
+
+        if (taskQuery.empty) {
+          console.log(`Webhook: no task found for eventId ${event.id}`);
+          continue;
+        }
+
+        const taskDoc = taskQuery.docs[0];
+        const taskData = taskDoc.data();
+
+        // Event cancelled/deleted in Google Calendar
+        if (event.status === "cancelled") {
+          console.log(`Webhook: event ${event.id} cancelled, skipping task update`);
+          continue;
+        }
+
+        // Build update payload — ANTI-LOOP: do NOT increment syncRevision
+        const update: Record<string, unknown> = {
+          updatedBy: "google_webhook",
+          updatedAt: FieldValue.serverTimestamp(),
+        };
+
+        // Update title if changed
+        if (event.summary && event.summary !== taskData.title) {
+          update.title = event.summary;
+        }
+
+        // Update description if changed
+        if (
+          event.description !== undefined &&
+          event.description !== taskData.description
+        ) {
+          update.description = event.description;
+        }
+
+        // Update dueDate if changed
+        const eventStart =
+          event.start?.dateTime || event.start?.date || null;
+        if (eventStart) {
+          const newDueAt = new Date(eventStart);
+          const oldDueAt = taskData.dueAt?.toDate
+            ? taskData.dueAt.toDate()
+            : null;
+
+          // Only update if date actually changed (> 60s difference)
+          if (
+            !oldDueAt ||
+            Math.abs(newDueAt.getTime() - oldDueAt.getTime()) > 60000
+          ) {
+            update.dueAt = newDueAt;
+          }
+        }
+
+        // ANTI-LOOP: set lastProcessedSyncRevision = syncRevision
+        // so the CRM→Google sync won't re-trigger
+        update.lastProcessedSyncRevision = taskData.syncRevision ?? 0;
+        update.syncState = "synced";
+
+        // Only write if there are actual data changes
+        const hasDataChanges = Object.keys(update).some(
+          (k) =>
+            !["updatedBy", "updatedAt", "lastProcessedSyncRevision", "syncState"].includes(k)
+        );
+
+        if (hasDataChanges) {
+          await taskDoc.ref.update(update);
+          console.log(
+            `Webhook: updated task ${taskDoc.id} from Google Calendar`
+          );
+        } else {
+          console.log(
+            `Webhook: no data changes for task ${taskDoc.id}, skipping write`
+          );
+        }
+      }
+
+      console.log(`Webhook: done processing for user ${uid}`);
+    } catch (err) {
+      console.error("Webhook processing error:", err);
+    }
+
+    res.status(200).send("OK");
   }
 );
