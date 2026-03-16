@@ -385,7 +385,7 @@ function ArchivedDealsTable({ deals }: { deals: DealDTO[] }) {
                   Odrzucone ({rejected.length})
                 </h3>
               </div>
-              <ArchiveTable
+              <RejectedTable
                 deals={rejected}
                 clientSourceMap={clientSourceMap}
               />
@@ -431,6 +431,116 @@ function ArchiveTable({
         </tbody>
       </table>
     </div>
+  );
+}
+
+// ─── Rejected Table (simplified) ────────────────────────────
+
+function RejectedTable({
+  deals,
+  clientSourceMap,
+}: {
+  deals: DealDTO[];
+  clientSourceMap: Map<string, string>;
+}) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-left text-[11px] text-muted-foreground uppercase tracking-wider">
+            <th className="px-4 py-2 font-medium">Klient</th>
+            <th className="px-4 py-2 font-medium">Tytuł</th>
+            <th className="px-4 py-2 font-medium">Źródło</th>
+            <th className="px-4 py-2 font-medium">Powód odrzucenia</th>
+          </tr>
+        </thead>
+        <tbody>
+          {deals.map((d) => (
+            <RejectedRow
+              key={d.id}
+              deal={d}
+              clientSource={clientSourceMap.get(d.clientId) ?? "—"}
+            />
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function RejectedRow({
+  deal,
+  clientSource,
+}: {
+  deal: DealDTO;
+  clientSource: string;
+}) {
+  const updateNotes = useUpdateDealNotes();
+  const uid = useAuthStore((s) => s.user?.uid);
+  const qc = useQueryClient();
+
+  const [editing, setEditing] = useState(false);
+  const [reasonVal, setReasonVal] = useState(deal.rejectionReason ?? deal.notes ?? "");
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  const startEdit = () => {
+    setReasonVal(deal.rejectionReason ?? deal.notes ?? "");
+    setEditing(true);
+    setTimeout(() => ref.current?.focus(), 0);
+  };
+
+  const save = () => {
+    const trimmed = reasonVal.trim();
+    if (trimmed !== (deal.notes ?? "").trim()) {
+      if (uid) {
+        qc.setQueryData<DealDTO[]>(dealsQueryKey(uid), (old) =>
+          old?.map((d) =>
+            d.id === deal.id ? { ...d, notes: trimmed } : d
+          )
+        );
+      }
+      updateNotes.mutate({ dealId: deal.id, notes: trimmed });
+    }
+    setEditing(false);
+  };
+
+  return (
+    <tr className="border-t border-white/[0.05] hover:bg-white/[0.03] transition-colors">
+      <td className="px-4 py-2.5 text-foreground font-medium">
+        {deal.clientName ?? "—"}
+      </td>
+      <td className="px-4 py-2.5 text-foreground">
+        {deal.title}
+      </td>
+      <td className="px-4 py-2.5 text-muted-foreground text-xs">
+        {clientSource}
+      </td>
+      <td className="px-4 py-2.5 text-xs max-w-[300px]">
+        {editing ? (
+          <textarea
+            ref={ref}
+            value={reasonVal}
+            onChange={(e) => setReasonVal(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setEditing(false);
+            }}
+            onBlur={save}
+            rows={2}
+            className="w-full rounded bg-white/10 border border-white/20 px-1.5 py-0.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-red-500/50 resize-y"
+          />
+        ) : (
+          <span
+            className="text-red-400 cursor-pointer group inline-flex items-center gap-1 hover:text-red-300 transition-colors"
+            onClick={startEdit}
+          >
+            <span className="truncate">
+              {deal.rejectionReason || deal.notes || "Brak powodu"}
+            </span>
+            <Pencil className="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </span>
+        )}
+      </td>
+    </tr>
   );
 }
 
