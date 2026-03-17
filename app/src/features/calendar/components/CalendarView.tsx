@@ -85,27 +85,25 @@ function TaskPopup({
       className="absolute z-30 w-72 rounded-lg border border-border bg-card p-4 shadow-xl"
       style={{ top: 0, right: "calc(100% + 8px)" }}
     >
-      <div className="flex items-start justify-between gap-2 mb-3">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-lg">{TASK_TYPE_EMOJI[task.type]}</span>
-          <h3 className="font-semibold text-foreground text-sm truncate">{task.title}</h3>
+      <div className="flex items-start justify-between gap-2 mb-1">
+        <div className="min-w-0">
+          {task.clientName && (
+            <button
+              onClick={() => { navigate(`/clients/${task.clientId}`); onClose(); }}
+              className="text-xl font-bold text-foreground hover:text-blue-400 transition-colors truncate block cursor-pointer"
+            >
+              {task.clientName}
+            </button>
+          )}
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm">{TASK_TYPE_EMOJI[task.type]}</span>
+            <h3 className="text-base text-muted-foreground truncate">{task.title}</h3>
+          </div>
         </div>
         <button onClick={onClose} className="text-muted-foreground hover:text-foreground shrink-0 cursor-pointer">
           <X className="h-4 w-4" />
         </button>
       </div>
-
-      {task.clientName && (
-        <p className="text-xs text-muted-foreground mb-1">
-          Klient:{" "}
-          <button
-            onClick={() => { navigate(`/clients/${task.clientId}`); onClose(); }}
-            className="text-blue-400 hover:underline cursor-pointer"
-          >
-            {task.clientName}
-          </button>
-        </p>
-      )}
 
       {dueDate && (
         <p className="text-xs text-muted-foreground mb-1">
@@ -311,13 +309,27 @@ export function CalendarView() {
                       >
                         <div className="flex items-center gap-1 min-w-0">
                           <span className="text-xs shrink-0">{TASK_TYPE_EMOJI[task.type]}</span>
-                          <span className={cn("text-[11px] font-medium truncate", colors.text)}>
-                            {task.title}
-                          </span>
+                          {task.clientName ? (
+                            <span className={cn(
+                              "font-semibold truncate leading-tight",
+                              blockHeight >= 36 ? "text-lg" : "text-xs",
+                              colors.text
+                            )}>
+                              {task.clientName}
+                            </span>
+                          ) : (
+                            <span className={cn(
+                              "font-medium truncate",
+                              blockHeight >= 36 ? "text-sm" : "text-xs",
+                              colors.text
+                            )}>
+                              {task.title}
+                            </span>
+                          )}
                         </div>
                         {blockHeight >= 36 && task.clientName && (
-                          <div className="text-[10px] text-muted-foreground truncate">
-                            {task.clientName}
+                          <div className="text-sm text-muted-foreground truncate">
+                            {task.title}
                           </div>
                         )}
                       </button>
