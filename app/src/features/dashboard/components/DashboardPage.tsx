@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useTasks } from "@/features/tasks/api/useTasks";
@@ -14,6 +14,8 @@ import {
 } from "@/features/tasks/types/task";
 import type { TaskDTO } from "@/features/tasks/types/task";
 import type { LeadDTO } from "@/features/leads/api/leads";
+import type { DealDTO } from "@/features/deals/types/deal";
+import { DEAL_STAGE_LABELS } from "@/features/deals/types/deal";
 import {
   AlertTriangle,
   Briefcase,
@@ -25,8 +27,8 @@ import {
   X,
   Zap,
   RefreshCw,
+  Activity,
 } from "lucide-react";
-import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
@@ -122,66 +124,125 @@ function ReauthBanner() {
 
 // ─── Stats Cards ─────────────────────────────────────────────
 
+// ─── Month options helper ────────────────────────────────────
+
+const MONTH_NAMES = [
+  "Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec",
+  "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień",
+];
+
+function buildMonthOptions() {
+  const now = new Date();
+  const options: { value: string; label: string }[] = [
+    { value: "all", label: "Cały okres" },
+  ];
+  // Last 12 months + current
+  for (let i = 0; i <= 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const label = `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
+    options.push({ value, label });
+  }
+  return options;
+}
+
 // ─── Financial Widgets ───────────────────────────────────────
 
 function FinancialWidgets({
-  pipelineValue,
-  closedValue,
-  activeCount,
+  deals,
+  selectedMonth,
+  onMonthChange,
 }: {
-  pipelineValue: number;
-  closedValue: number;
-  activeCount: number;
+  deals: DealDTO[];
+  selectedMonth: string;
+  onMonthChange: (month: string) => void;
 }) {
   const navigate = useNavigate();
+  const monthOptions = useMemo(() => buildMonthOptions(), []);
+
+  const stats = useMemo(() => {
+    const filtered = selectedMonth === "all"
+      ? deals
+      : deals.filter((d) => {
+          if (d.stage === "wyplata" && d.payoutDate) {
+            return d.payoutDate === selectedMonth;
+          }
+          return d.createdAt?.slice(0, 7) === selectedMonth;
+        });
+
+    const active = filtered.filter((d) => d.stage !== "wyplata" && !d.isRejected && !d.isArchived);
+    const closed = filtered.filter((d) => d.stage === "wyplata");
+
+    return {
+      pipelineValue: active.reduce((sum, d) => sum + d.value, 0),
+      closedValue: closed.reduce((sum, d) => sum + (d.commissionValue ?? 0), 0),
+      activeCount: active.length,
+    };
+  }, [deals, selectedMonth]);
 
   return (
-    <div className="grid gap-4 sm:grid-cols-3">
-      <div
-        className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-5 cursor-pointer transition-all hover:ring-1 hover:ring-primary/30"
-        onClick={() => navigate("/pipeline")}
-      >
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/20">
-            <span className="text-lg">💰</span>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Aktywny lejek</p>
-            <p className="text-xl font-bold text-primary">
-              {formatCurrency(pipelineValue)}
-            </p>
-          </div>
-        </div>
+    <div className="space-y-3">
+      {/* Month filter */}
+      <div className="flex items-center gap-2">
+        <Calendar className="h-4 w-4 text-muted-foreground" />
+        <select
+          value={selectedMonth}
+          onChange={(e) => onMonthChange(e.target.value)}
+          className="rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground outline-none"
+        >
+          {monthOptions.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
       </div>
 
-      <div
-        className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-5 cursor-pointer transition-all hover:ring-1 hover:ring-emerald-500/30"
-        onClick={() => navigate("/pipeline")}
-      >
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/20">
-            <span className="text-lg">🏆</span>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Zamknięte sukcesem</p>
-            <p className="text-xl font-bold text-emerald-400">
-              {formatCurrency(closedValue)}
-            </p>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div
+          className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-5 cursor-pointer transition-all hover:ring-1 hover:ring-primary/30"
+          onClick={() => navigate("/pipeline")}
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/20">
+              <span className="text-lg">💰</span>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Aktywny lejek</p>
+              <p className="text-xl font-bold text-primary">
+                {formatCurrency(stats.pipelineValue)}
+              </p>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div
-        className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-5 cursor-pointer transition-all hover:ring-1 hover:ring-blue-500/30"
-        onClick={() => navigate("/pipeline")}
-      >
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/20">
-            <span className="text-lg">📂</span>
+        <div
+          className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-5 cursor-pointer transition-all hover:ring-1 hover:ring-emerald-500/30"
+          onClick={() => navigate("/pipeline")}
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/20">
+              <span className="text-lg">🏆</span>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Zamknięte sukcesem</p>
+              <p className="text-xl font-bold text-emerald-400">
+                {formatCurrency(stats.closedValue)}
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Aktywne sprawy</p>
-            <p className="text-2xl font-bold text-blue-400">{activeCount}</p>
+        </div>
+
+        <div
+          className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-5 cursor-pointer transition-all hover:ring-1 hover:ring-blue-500/30"
+          onClick={() => navigate("/pipeline")}
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/20">
+              <span className="text-lg">📂</span>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Aktywne sprawy</p>
+              <p className="text-2xl font-bold text-blue-400">{stats.activeCount}</p>
+            </div>
           </div>
         </div>
       </div>
@@ -550,15 +611,9 @@ export function DashboardPage() {
   const { data: leads = [], isLoading: leadsLoading } = useLeads();
   const { data: deals = [] } = useDeals();
 
-  const financialStats = useMemo(() => {
-    const active = deals.filter((d) => d.stage !== "wyplata");
-    const closed = deals.filter((d) => d.stage === "wyplata");
-    return {
-      pipelineValue: active.reduce((sum, d) => sum + d.value, 0),
-      closedValue: closed.reduce((sum, d) => sum + d.value, 0),
-      activeCount: active.length,
-    };
-  }, [deals]);
+  // F1: month filter for financial widgets (default: current YYYY-MM)
+  const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
+  const [finMonth, setFinMonth] = useState(currentMonth);
 
   const today = new Date();
 
@@ -600,9 +655,9 @@ export function DashboardPage() {
 
       {/* Financial Widgets */}
       <FinancialWidgets
-        pipelineValue={financialStats.pipelineValue}
-        closedValue={financialStats.closedValue}
-        activeCount={financialStats.activeCount}
+        deals={deals}
+        selectedMonth={finMonth}
+        onMonthChange={setFinMonth}
       />
 
       {/* Task Stats */}
@@ -644,7 +699,128 @@ export function DashboardPage() {
           <NewLeadsSection leads={newLeads} />
         )}
       </section>
+
+      {/* Recent Activity */}
+      <RecentActivity deals={deals} tasks={tasks} />
     </div>
+  );
+}
+
+// ─── Recent Activity (F2) ────────────────────────────────────
+
+interface ActivityItem {
+  id: string;
+  icon: string;
+  label: string;
+  detail?: string;
+  timestamp: string; // ISO
+}
+
+function RecentActivity({
+  deals,
+  tasks,
+}: {
+  deals: DealDTO[];
+  tasks: TaskDTO[];
+}) {
+  const items = useMemo(() => {
+    const out: ActivityItem[] = [];
+
+    // Tasks: completed or cancelled recently
+    for (const t of tasks) {
+      if (t.status === "done" && t.completedAt) {
+        out.push({
+          id: `task-done-${t.id}`,
+          icon: "✓",
+          label: t.title,
+          detail: `Wykonane — ${t.clientName}`,
+          timestamp: t.completedAt,
+        });
+      }
+      if ((t.status === "cancelled" || t.status === "system_cancelled") && t.updatedAt) {
+        out.push({
+          id: `task-cancel-${t.id}`,
+          icon: "✗",
+          label: t.title,
+          detail: `Anulowane — ${t.clientName}`,
+          timestamp: t.updatedAt,
+        });
+      }
+    }
+
+    // Deals: stage changes from history
+    for (const d of deals) {
+      if (d.history?.length > 0) {
+        const latest = d.history[d.history.length - 1];
+        out.push({
+          id: `deal-stage-${d.id}`,
+          icon: "📊",
+          label: d.title,
+          detail: `${DEAL_STAGE_LABELS[latest.stage]} — ${d.clientName ?? ""}`,
+          timestamp: latest.timestamp,
+        });
+      }
+      if (d.isRejected && d.history?.length > 0) {
+        out.push({
+          id: `deal-reject-${d.id}`,
+          icon: "🚫",
+          label: d.title,
+          detail: `Odrzucono — ${d.clientName ?? ""}`,
+          timestamp: d.history[d.history.length - 1].timestamp,
+        });
+      }
+    }
+
+    // Sort by timestamp desc, take 10
+    out.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    return out.slice(0, 10);
+  }, [deals, tasks]);
+
+  if (items.length === 0) return null;
+
+  function formatRelative(iso: string): string {
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "teraz";
+    if (mins < 60) return `${mins} min temu`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) {
+      if (hrs === 1) return "1 godzinę temu";
+      if (hrs < 5) return `${hrs} godziny temu`;
+      return `${hrs} godzin temu`;
+    }
+    const days = Math.floor(hrs / 24);
+    if (days === 1) return "wczoraj";
+    if (days < 5) return `${days} dni temu`;
+    return `${days} dni temu`;
+  }
+
+  return (
+    <section className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-5">
+      <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-foreground">
+        <Activity className="h-4 w-4 text-violet-400" />
+        Ostatnia aktywność
+      </h2>
+      <div className="space-y-1">
+        {items.map((item) => (
+          <div
+            key={item.id}
+            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm hover:bg-white/[0.04] transition-colors"
+          >
+            <span className="text-base shrink-0 w-6 text-center">{item.icon}</span>
+            <div className="flex-1 min-w-0">
+              <span className="font-medium text-foreground truncate block">{item.label}</span>
+              {item.detail && (
+                <span className="text-xs text-muted-foreground truncate block">{item.detail}</span>
+              )}
+            </div>
+            <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
+              {formatRelative(item.timestamp)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

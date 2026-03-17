@@ -100,16 +100,16 @@
 
 ## Etap F: Dashboard — filtrowanie i historia (Priorytet: średni)
 
-### F1. Filtr miesiąca/roku na widgetach finansowych
-- [ ] Dropdown miesiąc/rok nad widgetami finansowymi
-- [ ] Filtrowanie dealów po `payoutDate` (zamknięte) i `createdAt` (aktywne)
-- [ ] Domyślnie: bieżący miesiąc
+### F1. Filtr miesiąca/roku na widgetach finansowych ✅
+- [x] Dropdown miesiąc/rok nad widgetami finansowymi (13 miesięcy + "Cały okres")
+- [x] Filtrowanie dealów po `payoutDate` (zamknięte) i `createdAt` (aktywne)
+- [x] Domyślnie: bieżący miesiąc
 
-### F2. Sekcja "Ostatnia aktywność"
-- [ ] Nowy widget na dashboardzie: log ostatnich akcji
-- [ ] Źródło danych: ostatnio zmienione dokumenty (deals, tasks, notes) po `updatedAt`
-- [ ] Wyświetlanie: "Dodano notatkę do [klient]", "Zmieniono etap [deal]", "Ukończono [task]"
-- [ ] Limit: 10 ostatnich wpisów
+### F2. Sekcja "Ostatnia aktywność" ✅
+- [x] Widget na dashboardzie: log ostatnich akcji
+- [x] Źródło danych: ukończone/anulowane taski (completedAt/updatedAt) + deal stage history
+- [x] Wyświetlanie: "Wykonane — klient", "Anulowane — klient", "Etap — klient", "Odrzucono — klient"
+- [x] Limit: 10 ostatnich wpisów z relative timestamps
 
 ---
 
