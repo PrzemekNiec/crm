@@ -1114,7 +1114,7 @@ function DealHistoryModal({
                     disabled={reject.isPending}
                     onClick={() => {
                       reject.mutate(
-                        { dealId: deal.id, reason: rejectReason },
+                        { dealId: deal.id, clientId: deal.clientId, reason: rejectReason },
                         {
                           onSuccess: () => {
                             setRejectOpen(false);

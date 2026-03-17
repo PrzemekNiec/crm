@@ -13,7 +13,9 @@ import {
   rejectDeal,
   dealsQueryKey,
 } from "./deals";
-import type { DealFormValues, DealStage, SettleDealValues } from "../types/deal";
+import { tasksQueryKey } from "@/features/tasks/api/tasks";
+import type { TaskDTO } from "@/features/tasks/types/task";
+import type { DealDTO, DealFormValues, DealStage, SettleDealValues } from "../types/deal";
 
 // ─── Fetch all deals ────────────────────────────────────────
 
@@ -204,20 +206,68 @@ export function useRejectDeal() {
   return useMutation({
     mutationFn: async ({
       dealId,
+      clientId,
       reason,
     }: {
       dealId: string;
+      clientId: string;
       reason: string;
     }) => {
       if (!uid) throw new Error("Brak zalogowanego użytkownika");
-      return rejectDeal(uid, dealId, reason);
+      return rejectDeal(uid, dealId, clientId, reason);
     },
-    onSuccess: () => {
-      if (uid) qc.invalidateQueries({ queryKey: dealsQueryKey(uid) });
-      toast.success("Wniosek odrzucony — przeniesiony do archiwum");
+
+    // Optimistic UI: instantly mark deal as rejected + tasks as cancelled
+    onMutate: async ({ dealId, clientId }) => {
+      if (!uid) return;
+
+      await qc.cancelQueries({ queryKey: dealsQueryKey(uid) });
+      await qc.cancelQueries({ queryKey: tasksQueryKey(uid) });
+
+      const previousDeals = qc.getQueryData<DealDTO[]>(dealsQueryKey(uid));
+      const previousTasks = qc.getQueryData<TaskDTO[]>(tasksQueryKey(uid));
+
+      qc.setQueryData<DealDTO[]>(dealsQueryKey(uid), (old) =>
+        old?.map((d) =>
+          d.id === dealId
+            ? { ...d, isRejected: true, isArchived: true }
+            : d
+        )
+      );
+
+      qc.setQueryData<TaskDTO[]>(tasksQueryKey(uid), (old) =>
+        old?.map((t) =>
+          t.clientId === clientId && t.status === "open"
+            ? { ...t, status: "system_cancelled" as const }
+            : t
+        )
+      );
+
+      return { previousDeals, previousTasks };
     },
-    onError: () => {
+
+    onError: (_err, _vars, context) => {
+      if (uid && context) {
+        if (context.previousDeals) {
+          qc.setQueryData(dealsQueryKey(uid), context.previousDeals);
+        }
+        if (context.previousTasks) {
+          qc.setQueryData(tasksQueryKey(uid), context.previousTasks);
+        }
+      }
       toast.error("Nie udało się odrzucić wniosku");
+    },
+
+    onSettled: () => {
+      if (!uid) return;
+      qc.invalidateQueries({ queryKey: dealsQueryKey(uid) });
+      qc.invalidateQueries({ queryKey: tasksQueryKey(uid) });
+    },
+
+    onSuccess: (result) => {
+      const count = result.cancelledTaskIds.length;
+      const taskMsg = count > 0 ? ` (anulowano ${count} zadań)` : "";
+      toast.success(`Wniosek odrzucony — przeniesiony do archiwum${taskMsg}`);
     },
   });
 }

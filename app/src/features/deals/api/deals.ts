@@ -7,6 +7,8 @@ import {
   arrayUnion,
   query,
   orderBy,
+  where,
+  writeBatch,
   serverTimestamp,
   type FirestoreDataConverter,
   type QueryDocumentSnapshot,
@@ -230,17 +232,51 @@ export async function archiveDeal(
 
 // ─── Reject deal (negative decision) ───────────────────────
 
+export interface RejectDealResult {
+  cancelledTaskIds: string[];
+}
+
 export async function rejectDeal(
   uid: string,
   dealId: string,
+  clientId: string,
   reason: string
-): Promise<void> {
+): Promise<RejectDealResult> {
   const db = getDb();
-  const ref = doc(db, "users", uid, "deals", dealId);
-  await updateDoc(ref, {
+  const batch = writeBatch(db);
+
+  // 1. Update deal document
+  const dealRef = doc(db, "users", uid, "deals", dealId);
+  batch.update(dealRef, {
     isArchived: true,
     isRejected: true,
     rejectionReason: reason || "",
     updatedAt: serverTimestamp(),
   });
+
+  // 2. Cascade: cancel all open tasks for this client
+  const cancelledTaskIds: string[] = [];
+
+  if (clientId) {
+    const tasksRef = collection(db, "users", uid, "tasks");
+    const q = query(
+      tasksRef,
+      where("clientId", "==", clientId),
+      where("status", "==", "open")
+    );
+    const snap = await getDocs(q);
+
+    for (const taskDoc of snap.docs) {
+      batch.update(taskDoc.ref, {
+        status: "system_cancelled",
+        updatedAt: serverTimestamp(),
+      });
+      cancelledTaskIds.push(taskDoc.id);
+    }
+  }
+
+  // 3. Commit atomic batch
+  await batch.commit();
+
+  return { cancelledTaskIds };
 }

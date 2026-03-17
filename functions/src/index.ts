@@ -1,5 +1,7 @@
 import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
+import { onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { defineString } from "firebase-functions/params";
+import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { OAuth2Client } from "google-auth-library";
@@ -739,5 +741,181 @@ export const googleCalendarWebhook = onRequest(
     }
 
     res.status(200).send("OK");
+  }
+);
+
+// ─── onDealRejected: Calendar Soft Delete ───────────────
+// Listens for deal rejection and updates related Google Calendar
+// events with [ODRZUCONE] prefix + cleared reminders.
+// Retry-safe (idempotent) + structured logging.
+
+const REJECTED_PREFIX = "[ODRZUCONE] ";
+
+export const onDealRejected = onDocumentUpdated(
+  {
+    document: "users/{uid}/deals/{dealId}",
+    region: "europe-west1",
+    retry: true,
+  },
+  async (event) => {
+    const beforeData = event.data?.before.data();
+    const afterData = event.data?.after.data();
+
+    if (!beforeData || !afterData) return;
+
+    // Only fire when isRejected transitions from falsy → true
+    if (beforeData.isRejected || !afterData.isRejected) return;
+
+    const uid = event.params.uid;
+    const dealId = event.params.dealId;
+    const clientId = afterData.clientId as string | undefined;
+
+    logger.info("Deal rejected — starting calendar soft delete", {
+      uid,
+      dealId,
+      clientId,
+    });
+
+    if (!clientId) {
+      logger.warn("Deal has no clientId, skipping calendar cleanup", {
+        uid,
+        dealId,
+      });
+      return;
+    }
+
+    // 1. Get valid access token (returns null if no connection / reauth needed)
+    const tokenResult = await tryGetValidAccessToken(uid);
+    if (!tokenResult) {
+      logger.warn(
+        "Cannot get Google access token for user — calendar cleanup skipped",
+        { uid, dealId }
+      );
+      return;
+    }
+
+    const { accessToken, calendarId } = tokenResult;
+
+    // 2. Query tasks for this client that have a Google Calendar event
+    const tasksSnap = await db
+      .collection("users")
+      .doc(uid)
+      .collection("tasks")
+      .where("clientId", "==", clientId)
+      .where("googleEventId", "!=", null)
+      .get();
+
+    if (tasksSnap.empty) {
+      logger.info("No calendar-synced tasks found for client", {
+        uid,
+        dealId,
+        clientId,
+      });
+      return;
+    }
+
+    logger.info(`Found ${tasksSnap.size} calendar events to update`, {
+      uid,
+      dealId,
+      clientId,
+    });
+
+    // 3. PATCH each calendar event: prefix title + clear reminders
+    for (const taskDoc of tasksSnap.docs) {
+      const taskData = taskDoc.data();
+      const googleEventId = taskData.googleEventId as string;
+
+      try {
+        // Fetch current event to check title (idempotency)
+        const getRes = await fetch(
+          `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${googleEventId}`,
+          {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          }
+        );
+
+        if (getRes.status === 404 || getRes.status === 410) {
+          logger.info("Calendar event already deleted, skipping", {
+            uid,
+            googleEventId,
+            taskId: taskDoc.id,
+          });
+          continue;
+        }
+
+        if (!getRes.ok) {
+          const errBody = await getRes.text();
+          logger.error("Failed to GET calendar event", {
+            uid,
+            googleEventId,
+            taskId: taskDoc.id,
+            status: getRes.status,
+            error: errBody,
+          });
+          continue;
+        }
+
+        const eventData = await getRes.json();
+        const currentSummary = (eventData.summary as string) || "";
+
+        // Idempotency: skip if prefix already present
+        if (currentSummary.startsWith(REJECTED_PREFIX)) {
+          logger.info("Event already has [ODRZUCONE] prefix, skipping", {
+            uid,
+            googleEventId,
+            taskId: taskDoc.id,
+          });
+          continue;
+        }
+
+        // PATCH: add prefix + clear reminders
+        const patchRes = await fetch(
+          `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${googleEventId}`,
+          {
+            method: "PATCH",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              summary: `${REJECTED_PREFIX}${currentSummary}`,
+              reminders: { useDefault: false, overrides: [] },
+            }),
+          }
+        );
+
+        if (!patchRes.ok) {
+          const errBody = await patchRes.text();
+          logger.error("Failed to PATCH calendar event", {
+            uid,
+            googleEventId,
+            taskId: taskDoc.id,
+            status: patchRes.status,
+            error: errBody,
+          });
+          continue;
+        }
+
+        logger.info("Calendar event updated with [ODRZUCONE] prefix", {
+          uid,
+          googleEventId,
+          taskId: taskDoc.id,
+        });
+      } catch (err) {
+        logger.error("Unexpected error updating calendar event", {
+          uid,
+          googleEventId,
+          taskId: taskDoc.id,
+          error: err instanceof Error ? err.message : String(err),
+          stack: err instanceof Error ? err.stack : undefined,
+        });
+      }
+    }
+
+    logger.info("Deal rejection calendar cleanup complete", {
+      uid,
+      dealId,
+      eventsProcessed: tasksSnap.size,
+    });
   }
 );

@@ -33,13 +33,14 @@ export const TASK_TYPE_EMOJI: Record<TaskType, string> = {
 
 // ─── Task statuses ───────────────────────────────────────────
 
-export const TASK_STATUSES = ["open", "done", "cancelled"] as const;
+export const TASK_STATUSES = ["open", "done", "cancelled", "system_cancelled"] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 
 export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
   open: "Otwarte",
   done: "Wykonane",
   cancelled: "Anulowane",
+  system_cancelled: "Anulowane (system)",
 };
 
 // ─── Sync states (PRD v3.1 §11.4) ───────────────────────────
