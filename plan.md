@@ -115,20 +115,22 @@
 
 ## Etap G: Widok kalendarza w CRM (Priorytet: niski — duży zakres)
 
-### G1. Komponent `CalendarView`
-- [ ] Nowy feature folder: `features/calendar/components/CalendarView.tsx`
-- [ ] Widok tygodniowy z siatką godzinową (6:00–21:00)
-- [ ] Wyświetlanie zadań z `dueDate` jako bloki na siatce
-- [ ] Kolor bloku = typ zadania (emoji mapping → kolor)
+### G1. Komponent `CalendarView` ✅
+- [x] Nowy feature folder: `features/calendar/components/CalendarView.tsx`
+- [x] Widok tygodniowy z siatką godzinową (6:00–21:00)
+- [x] Wyświetlanie zadań z `dueDate` jako bloki na siatce
+- [x] Kolor bloku = typ zadania (emoji mapping → kolor)
 
-### G2. Nawigacja tygodniowa
-- [ ] Strzałki ← → do zmiany tygodnia
-- [ ] Przycisk "Dziś" do powrotu do bieżącego tygodnia
-- [ ] Header z datami (pon–niedz)
+### G2. Nawigacja tygodniowa ✅
+- [x] Strzałki ← → do zmiany tygodnia
+- [x] Przycisk "Dziś" do powrotu do bieżącego tygodnia
+- [x] Header z datami (pon–niedz), highlight dziś
+- [x] Route `/calendar` + ikona w sidebar
 
-### G3. Interakcja z zadaniami
-- [ ] Klik na blok → mini-popup z detalami zadania + akcje (ukończ/przełóż)
-- [ ] Opcjonalnie: drag & drop do zmiany godziny (reschedule)
+### G3. Interakcja z zadaniami ✅
+- [x] Klik na blok → mini-popup z detalami zadania + akcje (ukończ/usuń)
+- [x] Link do klienta w popup
+- [-] Drag & drop — pominięte (konflikt z backdrop-filter, jak w pipeline)
 
 ---
 
