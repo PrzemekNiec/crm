@@ -43,6 +43,8 @@ interface ClientDoc {
   mainNote?: string;
   tags?: string[];
   source?: string;
+  convertedFromLeadId?: string;
+  convertedAt?: Timestamp | null;
   referralName?: string;
   referralRate?: number;
   lastContactAt: Timestamp | null;
@@ -79,6 +81,8 @@ export interface ClientDTO {
   lastContactAt: string | null;
   nextActionAt: string | null;
   nextActionTaskId: string | null;
+  convertedFromLeadId?: string;
+  convertedAt?: string | null;
   archived: boolean;
   softDeleted: boolean;
   createdAt: string | null;
@@ -120,6 +124,8 @@ export const clientConverter: FirestoreDataConverter<ClientDTO> = {
       lastContactAt: timestampToISO(d.lastContactAt),
       nextActionAt: timestampToISO(d.nextActionAt),
       nextActionTaskId: d.nextActionTaskId ?? null,
+      convertedFromLeadId: d.convertedFromLeadId,
+      convertedAt: timestampToISO(d.convertedAt ?? null),
       archived: d.archived ?? false,
       softDeleted: d.softDeleted ?? false,
       createdAt: timestampToISO(d.createdAt),

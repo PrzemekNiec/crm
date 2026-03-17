@@ -119,6 +119,8 @@ export async function convertLead(
     stage: "first_contact",
     priority: "normal",
     source: "converted",
+    convertedFromLeadId: lead.id,
+    convertedAt: serverTimestamp(),
     loanAmount: lead.estimatedAmount ?? null,
     lastContactAt: null,
     nextActionAt: null,

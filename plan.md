@@ -66,34 +66,35 @@
 
 ## Etap D: Ślad konwersji Lead → Klient (Priorytet: średni)
 
-### D1. Zapisywanie źródła konwersji
-- [ ] W `convertLead()` → zapisać `convertedFromLeadId` i `convertedAt` w dokumencie klienta
-- [ ] Zaktualizować typ `ClientDTO` o opcjonalne pole `convertedFromLeadId`
+### D1. Zapisywanie źródła konwersji ✅
+- [x] W `convertLead()` → zapisać `convertedFromLeadId` i `convertedAt` w dokumencie klienta
+- [x] Zaktualizować typ `ClientDTO` o opcjonalne pole `convertedFromLeadId`
 
-### D2. Badge w kartotece klienta
-- [ ] W nagłówku `ClientDetailsPage`: jeśli `convertedFromLeadId` → badge "Skonwertowany z leada"
-- [ ] Opcjonalnie: tooltip z datą konwersji
+### D2. Badge w kartotece klienta ✅
+- [x] W nagłówku `ClientDetailsPage`: jeśli `convertedFromLeadId` → badge "Skonwertowany z leada"
+- [x] Data konwersji wyświetlana w badge
 
 ---
 
 ## Etap E: Globalna wyszukiwarka Ctrl+K (Priorytet: średni)
 
-### E1. Komponent `CommandPalette`
-- [ ] Nowy plik `components/CommandPalette.tsx`
-- [ ] Dialog otwierany przez Ctrl+K (lub Cmd+K na Mac)
-- [ ] Input z autofocus + lista wyników
+### E1. Komponent `CommandPalette` ✅
+- [x] Nowy plik `components/CommandPalette.tsx`
+- [x] Dialog otwierany przez Ctrl+K (lub Cmd+K na Mac)
+- [x] Input z autofocus + lista wyników
 
-### E2. Wyszukiwanie po modułach
-- [ ] Przeszukiwanie klientów (fullName, phone, email)
-- [ ] Przeszukiwanie dealów (title, clientName)
-- [ ] Przeszukiwanie zadań (title)
-- [ ] Wyniki pogrupowane sekcjami: Klienci / Szanse / Zadania
+### E2. Wyszukiwanie po modułach ✅
+- [x] Przeszukiwanie klientów (fullName, phone, email)
+- [x] Przeszukiwanie dealów (title, clientName)
+- [x] Przeszukiwanie zadań (title, clientName)
+- [x] Wyniki pogrupowane sekcjami: Klienci / Szanse / Zadania
 
-### E3. Nawigacja z wyników
-- [ ] Klik na klienta → `/clients/{id}`
-- [ ] Klik na deal → `/pipeline` (+ otwórz modal)
-- [ ] Klik na task → `/tasks` (+ highlight)
-- [ ] Zamknięcie palety po wyborze
+### E3. Nawigacja z wyników ✅
+- [x] Klik na klienta → `/clients/{id}`
+- [x] Klik na deal → `/pipeline`
+- [x] Klik na task → `/tasks`
+- [x] Zamknięcie palety po wyborze
+- [x] Nawigacja strzałkami ↑↓ + Enter + Esc
 
 ---
 

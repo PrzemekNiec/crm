@@ -5,6 +5,7 @@ import { useAuthListener } from "@/hooks/useAuthListener";
 import { AuthGuard } from "@/components/AuthGuard";
 import { AppShell } from "@/components/layout/AppShell";
 import { ToastContainer } from "@/components/ui/Toast";
+import { CommandPalette } from "@/components/CommandPalette";
 import { DashboardPage } from "@/features/dashboard/components/DashboardPage";
 import { ClientsPage } from "@/features/clients/components/ClientsPage";
 import { TasksPage } from "@/features/tasks/components/TasksPage";
@@ -50,6 +51,7 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <AppInner />
+          <CommandPalette />
           <ToastContainer />
         </BrowserRouter>
       </QueryClientProvider>

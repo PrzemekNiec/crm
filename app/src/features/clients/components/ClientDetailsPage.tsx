@@ -861,6 +861,16 @@ export function ClientDetailsPage() {
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <Badge variant="secondary">{stageLabel}</Badge>
                 <Badge variant="default">{sourceLabel}</Badge>
+                {client.convertedFromLeadId && (
+                  <Badge variant="outline" className="border-emerald-500 text-emerald-400">
+                    Skonwertowany z leada
+                    {client.convertedAt && (
+                      <span className="ml-1 opacity-70">
+                        ({new Date(client.convertedAt).toLocaleDateString("pl-PL")})
+                      </span>
+                    )}
+                  </Badge>
+                )}
               </div>
             </div>
           </div>
