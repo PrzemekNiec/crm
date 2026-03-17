@@ -101,6 +101,10 @@ export const CLIENT_SOURCE_LABELS: Record<ClientSource, string> = {
 
 // ─── Zod schema: form input (create / edit) ──────────────────
 
+// Helper: empty string → undefined, otherwise coerce to number
+const emptyToUndefined = (v: unknown) =>
+  v === "" || v === undefined || v === null ? undefined : Number(v);
+
 export const clientFormSchema = z
   .object({
     fullName: z
@@ -112,9 +116,9 @@ export const clientFormSchema = z
     preferredContactChannel: z.enum(CONTACT_CHANNELS).optional(),
     leadSource: z.string().max(100),
     productType: z.enum(PRODUCT_TYPES).optional(),
-    loanAmount: z.coerce.number().nonnegative().optional(),
-    propertyValue: z.coerce.number().nonnegative().optional(),
-    downPayment: z.coerce.number().nonnegative().optional(),
+    loanAmount: z.preprocess(emptyToUndefined, z.number().nonnegative().optional()),
+    propertyValue: z.preprocess(emptyToUndefined, z.number().nonnegative().optional()),
+    downPayment: z.preprocess(emptyToUndefined, z.number().nonnegative().optional()),
     bankPrimary: z.string().max(100),
     stage: z.enum(CLIENT_STAGES),
     priority: z.enum(PRIORITIES),
@@ -122,11 +126,13 @@ export const clientFormSchema = z
     tags: z.array(z.string().max(50)).max(20),
     source: z.enum(CLIENT_SOURCES).default("organic"),
     referralName: z.string().max(120).optional(),
-    referralRate: z.coerce
-      .number()
-      .min(0, "Stawka nie może być ujemna")
-      .max(100, "Stawka nie może przekraczać 100%")
-      .optional(),
+    referralRate: z.preprocess(
+      emptyToUndefined,
+      z.number()
+        .min(0, "Stawka nie może być ujemna")
+        .max(100, "Stawka nie może przekraczać 100%")
+        .optional()
+    ),
   })
   .refine(
     (data) =>

@@ -569,7 +569,8 @@ function formatCurrency(value: number): string {
   return new Intl.NumberFormat("pl-PL", {
     style: "currency",
     currency: "PLN",
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(value);
 }
 
@@ -735,6 +736,7 @@ function DealsTab({ clientId, clientName }: { clientId: string; clientName: stri
             <Input
               id="deal-value"
               type="number"
+              step="0.01"
               placeholder="np. 500000"
               {...register("value", { valueAsNumber: true })}
             />

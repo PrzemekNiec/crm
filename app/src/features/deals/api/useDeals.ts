@@ -6,6 +6,7 @@ import {
   createDeal,
   updateDealStage,
   updateDealTitle,
+  updateDealValue,
   updateDealNotes,
   toggleCPRegistration,
   updateDealCommission,
@@ -92,6 +93,26 @@ export function useUpdateDealTitle() {
     },
     onError: () => {
       toast.error("Nie udało się zaktualizować tytułu");
+    },
+  });
+}
+
+// ─── Update deal value ──────────────────────────────────────
+
+export function useUpdateDealValue() {
+  const uid = useAuthStore((s) => s.user?.uid);
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ dealId, value }: { dealId: string; value: number }) => {
+      if (!uid) throw new Error("Brak zalogowanego użytkownika");
+      return updateDealValue(uid, dealId, value);
+    },
+    onSuccess: () => {
+      if (uid) qc.invalidateQueries({ queryKey: dealsQueryKey(uid) });
+    },
+    onError: () => {
+      toast.error("Nie udało się zaktualizować kwoty");
     },
   });
 }

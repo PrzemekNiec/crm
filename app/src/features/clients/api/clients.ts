@@ -182,8 +182,14 @@ export async function createClient(
   const db = getDb();
   const ref = collection(db, "users", uid, "clients");
 
+  // Strip undefined values — Firestore rejects them
+  const clean: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(values)) {
+    if (v !== undefined) clean[k] = v;
+  }
+
   const docRef = await addDoc(ref, {
-    ...values,
+    ...clean,
     lastContactAt: null,
     nextActionAt: null,
     nextActionTaskId: null,
@@ -204,8 +210,10 @@ export async function updateClient(
 ): Promise<void> {
   const db = getDb();
   const ref = doc(db, "users", uid, "clients", clientId);
-  await updateDoc(ref, {
-    ...values,
-    updatedAt: serverTimestamp(),
-  });
+  // Strip undefined values — Firestore rejects them
+  const clean: Record<string, unknown> = { updatedAt: serverTimestamp() };
+  for (const [k, v] of Object.entries(values)) {
+    if (v !== undefined) clean[k] = v;
+  }
+  await updateDoc(ref, clean);
 }

@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/useAuthStore";
 import {
@@ -7,6 +8,7 @@ import {
   useUpdateDealStage,
   useUpdateDealTitle,
   useUpdateDealNotes,
+  useUpdateDealValue,
   useToggleCPRegistration,
   useUpdateDealCommission,
   useArchiveDeal,
@@ -68,7 +70,8 @@ function formatCurrency(value: number): string {
   return new Intl.NumberFormat("pl-PL", {
     style: "currency",
     currency: "PLN",
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(value);
 }
 
@@ -258,12 +261,22 @@ function ArchivedDealsTable({ deals }: { deals: DealDTO[] }) {
     return Array.from(set).sort((a, b) => b - a);
   }, [archived, currentYear]);
 
-  // Client source lookup
-  const clientSourceMap = useMemo(() => {
-    const map = new Map<string, string>();
+  // Client source + referral lookup
+  const clientInfoMap = useMemo(() => {
+    const map = new Map<string, {
+      sourceLabel: string;
+      source?: string;
+      referralName?: string;
+      referralRate?: number;
+    }>();
     for (const c of clients) {
       const src = c.source as ClientSource | undefined;
-      map.set(c.id, src ? (CLIENT_SOURCE_LABELS[src] ?? "—") : "—");
+      map.set(c.id, {
+        sourceLabel: src ? (CLIENT_SOURCE_LABELS[src] ?? "—") : "—",
+        source: src,
+        referralName: c.referralName,
+        referralRate: c.referralRate,
+      });
     }
     return map;
   }, [clients]);
@@ -292,9 +305,19 @@ function ArchivedDealsTable({ deals }: { deals: DealDTO[] }) {
     .map(Number)
     .sort((a, b) => a - b);
 
+  const getNetCommission = (d: DealDTO) => {
+    const gross = d.commissionValue ?? 0;
+    const info = clientInfoMap.get(d.clientId);
+    if (info?.source === "referral" && info.referralRate) {
+      const referralCut = d.value * info.referralRate / 100;
+      return gross - referralCut;
+    }
+    return gross;
+  };
+
   const totalCommission = sortedMonths.reduce(
     (sum, m) =>
-      sum + grouped[m].reduce((s, d) => s + (d.commissionValue ?? 0), 0),
+      sum + grouped[m].reduce((s, d) => s + getNetCommission(d), 0),
     0
   );
 
@@ -340,7 +363,7 @@ function ArchivedDealsTable({ deals }: { deals: DealDTO[] }) {
           {sortedMonths.map((month) => {
             const monthDeals = grouped[month];
             const monthTotal = monthDeals.reduce(
-              (s, d) => s + (d.commissionValue ?? 0),
+              (s, d) => s + getNetCommission(d),
               0
             );
             return (
@@ -364,7 +387,7 @@ function ArchivedDealsTable({ deals }: { deals: DealDTO[] }) {
                 {/* Table */}
                 <ArchiveTable
                   deals={monthDeals}
-                  clientSourceMap={clientSourceMap}
+                  clientInfoMap={clientInfoMap}
                 />
               </div>
             );
@@ -387,7 +410,7 @@ function ArchivedDealsTable({ deals }: { deals: DealDTO[] }) {
               </div>
               <RejectedTable
                 deals={rejected}
-                clientSourceMap={clientSourceMap}
+                clientInfoMap={clientInfoMap}
               />
             </div>
           )}
@@ -399,12 +422,19 @@ function ArchivedDealsTable({ deals }: { deals: DealDTO[] }) {
 
 // ─── Archive Table (shared) ─────────────────────────────────
 
+type ClientInfo = {
+  sourceLabel: string;
+  source?: string;
+  referralName?: string;
+  referralRate?: number;
+};
+
 function ArchiveTable({
   deals,
-  clientSourceMap,
+  clientInfoMap,
 }: {
   deals: DealDTO[];
-  clientSourceMap: Map<string, string>;
+  clientInfoMap: Map<string, ClientInfo>;
 }) {
   return (
     <div className="overflow-x-auto">
@@ -425,7 +455,7 @@ function ArchiveTable({
             <ArchiveRow
               key={d.id}
               deal={d}
-              clientSource={clientSourceMap.get(d.clientId) ?? "—"}
+              clientInfo={clientInfoMap.get(d.clientId)}
             />
           ))}
         </tbody>
@@ -438,10 +468,10 @@ function ArchiveTable({
 
 function RejectedTable({
   deals,
-  clientSourceMap,
+  clientInfoMap,
 }: {
   deals: DealDTO[];
-  clientSourceMap: Map<string, string>;
+  clientInfoMap: Map<string, ClientInfo>;
 }) {
   return (
     <div className="overflow-x-auto">
@@ -455,13 +485,16 @@ function RejectedTable({
           </tr>
         </thead>
         <tbody>
-          {deals.map((d) => (
-            <RejectedRow
-              key={d.id}
-              deal={d}
-              clientSource={clientSourceMap.get(d.clientId) ?? "—"}
-            />
-          ))}
+          {deals.map((d) => {
+            const info = clientInfoMap.get(d.clientId);
+            return (
+              <RejectedRow
+                key={d.id}
+                deal={d}
+                clientSource={info?.sourceLabel ?? "—"}
+              />
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -508,9 +541,9 @@ function RejectedRow({
     <tr className="border-t border-white/[0.05] hover:bg-white/[0.03] transition-colors">
       <td className="px-4 py-2.5 text-foreground font-medium">
         {deal.clientId ? (
-          <a href={`/clients/${deal.clientId}`} className="hover:text-blue-400 hover:underline transition-colors">
+          <Link to={`/clients/${deal.clientId}`} className="hover:text-blue-400 hover:underline transition-colors">
             {deal.clientName ?? "—"}
-          </a>
+          </Link>
         ) : (deal.clientName ?? "—")}
       </td>
       <td className="px-4 py-2.5 text-foreground">
@@ -552,11 +585,14 @@ function RejectedRow({
 
 function ArchiveRow({
   deal,
-  clientSource,
+  clientInfo,
 }: {
   deal: DealDTO;
-  clientSource: string;
+  clientInfo?: ClientInfo;
 }) {
+  const isReferral = clientInfo?.source === "referral" && clientInfo.referralRate;
+  const referralCut = isReferral ? deal.value * clientInfo.referralRate! / 100 : 0;
+  const netCommission = (deal.commissionValue ?? 0) - referralCut;
   const updateCommission = useUpdateDealCommission();
   const updateNotes = useUpdateDealNotes();
   const uid = useAuthStore((s) => s.user?.uid);
@@ -624,9 +660,9 @@ function ArchiveRow({
     <tr className="border-t border-white/[0.05] hover:bg-white/[0.03] transition-colors">
       <td className="px-4 py-2.5 text-foreground font-medium">
         {deal.clientId ? (
-          <a href={`/clients/${deal.clientId}`} className="hover:text-blue-400 hover:underline transition-colors">
+          <Link to={`/clients/${deal.clientId}`} className="hover:text-blue-400 hover:underline transition-colors">
             {deal.clientName ?? "—"}
-          </a>
+          </Link>
         ) : (
           <span>{deal.clientName ?? "—"}</span>
         )}
@@ -684,13 +720,21 @@ function ArchiveRow({
           <span
             className="text-primary font-semibold cursor-pointer hover:text-primary/80 transition-colors"
             onClick={startEdit}
+            title={isReferral ? `Brutto: ${formatCurrency(deal.commissionValue ?? 0)} − pośrednik: ${formatCurrency(referralCut)}` : undefined}
           >
-            {deal.commissionValue != null ? formatCurrency(deal.commissionValue) : "—"}
+            {deal.commissionValue != null ? formatCurrency(netCommission) : "—"}
           </span>
         )}
       </td>
       <td className="px-4 py-2.5 text-muted-foreground text-xs">
-        {clientSource}
+        {isReferral ? (
+          <span>
+            {clientInfo?.referralName ?? "Pośrednik"}{" "}
+            <span className="text-amber-400 font-medium">{formatCurrency(referralCut)}</span>
+          </span>
+        ) : (
+          clientInfo?.sourceLabel ?? "—"
+        )}
       </td>
       <td className="px-4 py-2.5 text-muted-foreground text-xs max-w-[250px]">
         {editingNotes ? (
@@ -738,6 +782,7 @@ function DealCard({
 }) {
   const updateStage = useUpdateDealStage();
   const updateTitle = useUpdateDealTitle();
+  const updateValue = useUpdateDealValue();
   const toggleCP = useToggleCPRegistration();
   const uid = useAuthStore((s) => s.user?.uid);
   const qc = useQueryClient();
@@ -745,6 +790,10 @@ function DealCard({
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(deal.title);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const [isEditingValue, setIsEditingValue] = useState(false);
+  const [editAmount, setEditAmount] = useState(String(deal.value ?? ""));
+  const valueInputRef = useRef<HTMLInputElement>(null);
 
   const { prev, next } = getAdjacentStages(deal.stage);
   const isWyplata = deal.stage === "wyplata";
@@ -767,6 +816,25 @@ function DealCard({
       updateTitle.mutate({ dealId: deal.id, title: trimmed });
     }
     setIsEditing(false);
+  };
+
+  const startEditingValue = () => {
+    setEditAmount(String(deal.value ?? ""));
+    setIsEditingValue(true);
+    setTimeout(() => valueInputRef.current?.focus(), 0);
+  };
+
+  const saveValue = () => {
+    const num = parseFloat(editAmount);
+    if (!isNaN(num) && num >= 0 && num !== deal.value) {
+      if (uid) {
+        qc.setQueryData<DealDTO[]>(dealsQueryKey(uid), (old) =>
+          old?.map((d) => (d.id === deal.id ? { ...d, value: num } : d))
+        );
+      }
+      updateValue.mutate({ dealId: deal.id, value: num });
+    }
+    setIsEditingValue(false);
   };
 
   const moveTo = (newStage: DealStage) => {
@@ -810,9 +878,20 @@ function DealCard({
     >
       {/* Content */}
       <div className="min-w-0">
+        {/* Client name — primary label */}
+        {deal.clientName && (
+          <div className="flex items-center gap-1 text-xs font-medium text-foreground" onClick={(e) => e.stopPropagation()}>
+            <User className="h-3 w-3 shrink-0 text-muted-foreground" />
+            <Link to={`/clients/${deal.clientId}`} className="truncate hover:text-blue-400 hover:underline transition-colors">
+              {deal.clientName}
+            </Link>
+          </div>
+        )}
+
+        {/* Deal title — editable */}
         {isEditing ? (
           <div
-            className="flex items-center gap-1"
+            className="mt-0.5 flex items-center gap-1"
             onClick={(e) => e.stopPropagation()}
           >
             <input
@@ -824,7 +903,7 @@ function DealCard({
                 if (e.key === "Escape") setIsEditing(false);
               }}
               onBlur={saveTitle}
-              className="w-full rounded bg-white/10 border border-white/20 px-1.5 py-0.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/50"
+              className="w-full rounded bg-white/10 border border-white/20 px-1.5 py-0.5 text-[10px] text-muted-foreground outline-none focus:ring-1 focus:ring-primary/50"
             />
             <button
               type="button"
@@ -835,8 +914,8 @@ function DealCard({
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-1 group">
-            <p className="text-xs font-medium text-foreground truncate">
+          <div className="mt-0.5 flex items-center gap-1 group">
+            <p className="text-[10px] text-muted-foreground truncate">
               {deal.title}
             </p>
             <button
@@ -851,15 +930,47 @@ function DealCard({
             </button>
           </div>
         )}
-        <p className="mt-0.5 text-sm font-semibold text-primary">
-          {formatCurrency(deal.value)}
-        </p>
-        {deal.clientName && (
-          <div className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground" onClick={(e) => e.stopPropagation()}>
-            <User className="h-3 w-3" />
-            <a href={`/clients/${deal.clientId}`} className="truncate hover:text-blue-400 hover:underline transition-colors">
-              {deal.clientName}
-            </a>
+
+        {/* Deal value — editable */}
+        {isEditingValue ? (
+          <div
+            className="mt-0.5 flex items-center gap-1"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <input
+              ref={valueInputRef}
+              type="number"
+              step="0.01"
+              min="0"
+              value={editAmount}
+              onChange={(e) => setEditAmount(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") saveValue();
+                if (e.key === "Escape") setIsEditingValue(false);
+              }}
+              onBlur={saveValue}
+              className="w-full rounded bg-white/10 border border-white/20 px-1.5 py-0.5 text-sm font-semibold text-primary outline-none focus:ring-1 focus:ring-primary/50"
+            />
+            <button
+              type="button"
+              onClick={saveValue}
+              className="shrink-0 text-emerald-400 hover:text-emerald-300 cursor-pointer"
+            >
+              <Check className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ) : (
+          <div className="mt-0.5 flex items-center gap-1 group" onClick={(e) => e.stopPropagation()}>
+            <p className="text-sm font-semibold text-primary cursor-pointer" onClick={startEditingValue}>
+              {formatCurrency(deal.value)}
+            </p>
+            <button
+              type="button"
+              onClick={startEditingValue}
+              className="shrink-0 text-muted-foreground/0 group-hover:text-muted-foreground hover:!text-foreground cursor-pointer transition-colors"
+            >
+              <Pencil className="h-3 w-3" />
+            </button>
           </div>
         )}
       </div>
@@ -997,9 +1108,9 @@ function DealHistoryModal({
           {deal.clientName && (
             <p className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground">
               <User className="h-3.5 w-3.5" />
-              <a href={`/clients/${deal.clientId}`} className="hover:text-blue-400 hover:underline transition-colors">
+              <Link to={`/clients/${deal.clientId}`} className="hover:text-blue-400 hover:underline transition-colors">
                 {deal.clientName}
-              </a>
+              </Link>
             </p>
           )}
         </div>
@@ -1079,8 +1190,8 @@ function DealHistoryModal({
           )}
         </div>
 
-        {/* Rejection section — only for analiza & decyzja */}
-        {(deal.stage === "analiza" || deal.stage === "decyzja") && (
+        {/* Rejection section — potencjalne, analiza & decyzja */}
+        {(deal.stage === "potencjalne" || deal.stage === "analiza" || deal.stage === "decyzja") && (
           <div
             className="rounded-lg p-3 space-y-2"
             style={{
@@ -1095,18 +1206,18 @@ function DealHistoryModal({
                 className="flex items-center gap-1.5 text-sm font-medium text-red-400 hover:text-red-300 transition-colors cursor-pointer"
               >
                 <XCircle className="h-4 w-4" />
-                Decyzja negatywna
+                {deal.stage === "potencjalne" ? "Rezygnacja klienta" : "Decyzja negatywna"}
               </button>
             ) : (
               <>
                 <p className="text-sm font-semibold text-red-400 flex items-center gap-1.5">
                   <XCircle className="h-4 w-4" />
-                  Decyzja negatywna
+                  {deal.stage === "potencjalne" ? "Rezygnacja klienta" : "Decyzja negatywna"}
                 </p>
                 <textarea
                   value={rejectReason}
                   onChange={(e) => setRejectReason(e.target.value)}
-                  placeholder="Powód odrzucenia (opcjonalnie)..."
+                  placeholder={deal.stage === "potencjalne" ? "Powód rezygnacji (opcjonalnie)..." : "Powód odrzucenia (opcjonalnie)..."}
                   rows={2}
                   className="w-full rounded-md border border-red-500/30 bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-red-500/50 resize-y"
                 />
@@ -1140,7 +1251,9 @@ function DealHistoryModal({
                     }}
                     className="bg-red-600 hover:bg-red-700 text-white"
                   >
-                    {reject.isPending ? "Odrzucanie..." : "Potwierdź odrzucenie"}
+                    {reject.isPending
+                      ? (deal.stage === "potencjalne" ? "Rezygnacja..." : "Odrzucanie...")
+                      : (deal.stage === "potencjalne" ? "Potwierdź rezygnację" : "Potwierdź odrzucenie")}
                   </Button>
                 </div>
               </>
@@ -1404,6 +1517,7 @@ function AddDealDialog({
             <Input
               id="deal-value"
               type="number"
+              step="0.01"
               placeholder="np. 500000"
               {...register("value", { valueAsNumber: true })}
             />

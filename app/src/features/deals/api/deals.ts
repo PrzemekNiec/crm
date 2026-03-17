@@ -163,6 +163,21 @@ export async function updateDealTitle(
   });
 }
 
+// ─── Update deal value ──────────────────────────────────────
+
+export async function updateDealValue(
+  uid: string,
+  dealId: string,
+  value: number
+): Promise<void> {
+  const db = getDb();
+  const ref = doc(db, "users", uid, "deals", dealId);
+  await updateDoc(ref, {
+    value,
+    updatedAt: serverTimestamp(),
+  });
+}
+
 // ─── Update deal notes ──────────────────────────────────────
 
 export async function updateDealNotes(

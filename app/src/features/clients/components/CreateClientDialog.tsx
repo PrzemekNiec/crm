@@ -157,7 +157,7 @@ export function CreateClientDialog({
               type="number"
               min={0}
               max={100}
-              step={0.5}
+              step={0.01}
               placeholder="10"
               {...register("referralRate")}
             />
