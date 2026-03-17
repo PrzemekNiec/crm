@@ -12,6 +12,8 @@ import { tasksQueryKey } from "@/features/tasks/api/tasks";
 import { TASK_TYPE_EMOJI } from "@/features/tasks/types/task";
 import type { TaskDTO } from "@/features/tasks/types/task";
 import { cn } from "@/lib/cn";
+import { getDb } from "@/lib/firebase";
+import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 
 // ─── Constants ──────────────────────────────────────────────
 
@@ -68,7 +70,20 @@ function TaskPopup({
   const navigate = useNavigate();
   const completeTask = useCompleteTask();
   const deleteTask = useDeleteTask();
+  const rescheduleTask = useRescheduleTask();
+  const uid = useAuthStore((s) => s.user?.uid);
+  const qc = useQueryClient();
   const popupRef = useRef<HTMLDivElement>(null);
+
+  const dueDate = task.dueDate ? new Date(task.dueDate) : null;
+
+  // Editable time state
+  const [editTime, setEditTime] = useState(() =>
+    dueDate
+      ? `${String(dueDate.getHours()).padStart(2, "0")}:${String(dueDate.getMinutes()).padStart(2, "0")}`
+      : "09:00"
+  );
+  const [editDuration, setEditDuration] = useState(task.durationMin || 30);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -81,7 +96,56 @@ function TaskPopup({
   }, [onClose]);
 
   const colors = TYPE_COLORS[task.type] ?? TYPE_COLORS.custom;
-  const dueDate = task.dueDate ? new Date(task.dueDate) : null;
+
+  const handleSaveTime = () => {
+    if (!dueDate || !uid) return;
+    const [h, m] = editTime.split(":").map(Number);
+    if (isNaN(h) || isNaN(m)) return;
+
+    const newDate = new Date(dueDate);
+    newDate.setHours(h, m, 0, 0);
+    const newDueDate = newDate.toISOString();
+    const oldDueDate = task.dueDate;
+    const oldDuration = task.durationMin;
+
+    // Check if anything changed
+    if (newDueDate === oldDueDate && editDuration === oldDuration) return;
+
+    // Optimistic update
+    qc.setQueryData<TaskDTO[]>(tasksQueryKey(uid), (old) =>
+      old?.map((t) => (t.id === task.id ? { ...t, dueDate: newDueDate, durationMin: editDuration } : t))
+    );
+
+    // Persist time change
+    rescheduleTask.mutate(
+      {
+        taskId: task.id,
+        dueDate: newDueDate,
+        title: task.title,
+        description: task.description,
+        durationMin: editDuration,
+        googleEventId: task.googleEventId,
+        syncToGoogleCalendar: task.syncToGoogleCalendar,
+        type: task.type,
+      },
+      {
+        onError: () => {
+          qc.setQueryData<TaskDTO[]>(tasksQueryKey(uid), (old) =>
+            old?.map((t) => (t.id === task.id ? { ...t, dueDate: oldDueDate, durationMin: oldDuration } : t))
+          );
+        },
+      }
+    );
+
+    // Also update durationMin in Firestore (reschedule only updates dueAt)
+    if (editDuration !== oldDuration) {
+      const db = getDb();
+      const ref = doc(db, "users", uid, "tasks", task.id);
+      updateDoc(ref, { durationMin: editDuration, updatedAt: serverTimestamp() });
+    }
+
+    onClose();
+  };
 
   return (
     <div
@@ -110,13 +174,50 @@ function TaskPopup({
       </div>
 
       {dueDate && (
-        <p className="text-xs text-muted-foreground mb-1">
-          {dueDate.toLocaleString("pl-PL", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
+        <p className="text-xs text-muted-foreground mb-2">
+          {dueDate.toLocaleString("pl-PL", { weekday: "long", day: "numeric", month: "long" })}
         </p>
       )}
 
       {task.description && (
-        <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{task.description}</p>
+        <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{task.description}</p>
+      )}
+
+      {/* Time & Duration editors */}
+      {task.status === "open" && dueDate && (
+        <div className="flex items-center gap-2 mb-3">
+          <div className="flex-1">
+            <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-0.5">Godzina</label>
+            <input
+              type="time"
+              value={editTime}
+              step={900}
+              onChange={(e) => setEditTime(e.target.value)}
+              className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary/50"
+            />
+          </div>
+          <div className="w-24">
+            <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-0.5">Czas trwania</label>
+            <select
+              value={editDuration}
+              onChange={(e) => setEditDuration(Number(e.target.value))}
+              className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary/50"
+            >
+              <option value={15}>15 min</option>
+              <option value={30}>30 min</option>
+              <option value={45}>45 min</option>
+              <option value={60}>1 godz</option>
+              <option value={90}>1,5 godz</option>
+              <option value={120}>2 godz</option>
+              <option value={180}>3 godz</option>
+            </select>
+          </div>
+          <div className="pt-3.5">
+            <Button size="sm" variant="outline" className="text-xs px-2" onClick={handleSaveTime}>
+              Zapisz
+            </Button>
+          </div>
+        </div>
       )}
 
       <div className={cn("inline-block rounded px-2 py-0.5 text-xs font-medium mb-3 border", colors.bg, colors.border, colors.text)}>
@@ -161,7 +262,7 @@ export function CalendarView() {
   const { data: tasks = [] } = useTasks();
   const [weekStart, setWeekStart] = useState(() => getMonday(new Date()));
   const [selectedTask, setSelectedTask] = useState<TaskDTO | null>(null);
-  const [dragOverCell, setDragOverCell] = useState<{ dayIdx: number; hour: number } | null>(null);
+  const [dragOverCell, setDragOverCell] = useState<{ dayIdx: number; minutes: number } | null>(null);
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
 
   const uid = useAuthStore((s) => s.user?.uid);
@@ -371,10 +472,11 @@ export function CalendarView() {
                   e.dataTransfer.dropEffect = "move";
                   const rect = e.currentTarget.getBoundingClientRect();
                   const offsetY = e.clientY - rect.top;
-                  const rawHour = Math.floor(HOUR_START + offsetY / ROW_HEIGHT);
-                  const clampedHour = Math.max(HOUR_START, Math.min(HOUR_END - 1, rawHour));
-                  if (!dragOverCell || dragOverCell.dayIdx !== dayIdx || dragOverCell.hour !== clampedHour) {
-                    setDragOverCell({ dayIdx, hour: clampedHour });
+                  const rawMinutes = (offsetY / ROW_HEIGHT) * 60;
+                  const snappedMin = Math.round(rawMinutes / 15) * 15;
+                  const clampedMin = Math.max(0, Math.min((HOUR_END - HOUR_START) * 60 - 15, snappedMin));
+                  if (!dragOverCell || dragOverCell.dayIdx !== dayIdx || dragOverCell.minutes !== clampedMin) {
+                    setDragOverCell({ dayIdx, minutes: clampedMin });
                   }
                 }}
                 onDragLeave={(e) => {
@@ -384,22 +486,36 @@ export function CalendarView() {
                 }}
                 onDrop={(e) => handleDrop(e, dayIdx)}
               >
-                {/* Hour grid lines */}
+                {/* Hour grid lines + 15-min sub-lines */}
                 {HOURS.map((hour) => (
-                  <div
-                    key={hour}
-                    className="absolute w-full border-b border-border/50"
-                    style={{ top: (hour - HOUR_START) * ROW_HEIGHT + ROW_HEIGHT - 1, height: 1 }}
-                  />
+                  <div key={hour}>
+                    {/* Full hour line */}
+                    <div
+                      className="absolute w-full border-b border-border/50"
+                      style={{ top: (hour - HOUR_START) * ROW_HEIGHT + ROW_HEIGHT - 1, height: 1 }}
+                    />
+                    {/* 15-min sub-lines */}
+                    {[1, 2, 3].map((q) => (
+                      <div
+                        key={q}
+                        className="absolute w-full border-b border-border/20"
+                        style={{ top: (hour - HOUR_START) * ROW_HEIGHT + (q * ROW_HEIGHT) / 4 - 1, height: 1 }}
+                      />
+                    ))}
+                  </div>
                 ))}
 
                 {/* Drop indicator line */}
                 {isDragOver && dragOverCell && (
                   <div
                     className="absolute inset-x-0 h-0.5 bg-primary z-20 pointer-events-none"
-                    style={{ top: (dragOverCell.hour - HOUR_START) * ROW_HEIGHT }}
+                    style={{ top: (dragOverCell.minutes / 60) * ROW_HEIGHT }}
                   >
                     <div className="absolute -left-1 -top-1 h-2.5 w-2.5 rounded-full bg-primary" />
+                    <span className="absolute left-3 -top-3 text-[10px] font-medium text-primary bg-card/90 px-1 rounded">
+                      {String(HOUR_START + Math.floor(dragOverCell.minutes / 60)).padStart(2, "0")}:
+                      {String(dragOverCell.minutes % 60).padStart(2, "0")}
+                    </span>
                   </div>
                 )}
 
