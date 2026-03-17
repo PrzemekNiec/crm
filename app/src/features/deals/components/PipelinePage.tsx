@@ -507,7 +507,11 @@ function RejectedRow({
   return (
     <tr className="border-t border-white/[0.05] hover:bg-white/[0.03] transition-colors">
       <td className="px-4 py-2.5 text-foreground font-medium">
-        {deal.clientName ?? "—"}
+        {deal.clientId ? (
+          <a href={`/clients/${deal.clientId}`} className="hover:text-blue-400 hover:underline transition-colors">
+            {deal.clientName ?? "—"}
+          </a>
+        ) : (deal.clientName ?? "—")}
       </td>
       <td className="px-4 py-2.5 text-foreground">
         {deal.title}
@@ -619,7 +623,13 @@ function ArchiveRow({
   return (
     <tr className="border-t border-white/[0.05] hover:bg-white/[0.03] transition-colors">
       <td className="px-4 py-2.5 text-foreground font-medium">
-        <span>{deal.clientName ?? "—"}</span>
+        {deal.clientId ? (
+          <a href={`/clients/${deal.clientId}`} className="hover:text-blue-400 hover:underline transition-colors">
+            {deal.clientName ?? "—"}
+          </a>
+        ) : (
+          <span>{deal.clientName ?? "—"}</span>
+        )}
         {deal.isRejected && (
           <Badge variant="destructive" className="ml-1.5 text-[9px] px-1.5 py-0">
             Odrzucony
@@ -845,9 +855,11 @@ function DealCard({
           {formatCurrency(deal.value)}
         </p>
         {deal.clientName && (
-          <div className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+          <div className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground" onClick={(e) => e.stopPropagation()}>
             <User className="h-3 w-3" />
-            <span className="truncate">{deal.clientName}</span>
+            <a href={`/clients/${deal.clientId}`} className="truncate hover:text-blue-400 hover:underline transition-colors">
+              {deal.clientName}
+            </a>
           </div>
         )}
       </div>
@@ -985,7 +997,9 @@ function DealHistoryModal({
           {deal.clientName && (
             <p className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground">
               <User className="h-3.5 w-3.5" />
-              {deal.clientName}
+              <a href={`/clients/${deal.clientId}`} className="hover:text-blue-400 hover:underline transition-colors">
+                {deal.clientName}
+              </a>
             </p>
           )}
         </div>

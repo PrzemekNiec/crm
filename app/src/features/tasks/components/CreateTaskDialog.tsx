@@ -26,6 +26,8 @@ import { PRIORITY_LABELS } from "@/features/clients/types/client";
 interface CreateTaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  defaultClientId?: string;
+  defaultClientName?: string;
 }
 
 const typeOptions = TASK_TYPES.map((t) => ({
@@ -41,9 +43,13 @@ const priorityOptions = TASK_PRIORITIES.map((p) => ({
 export function CreateTaskDialog({
   open,
   onOpenChange,
+  defaultClientId,
+  defaultClientName,
 }: CreateTaskDialogProps) {
   const { data: clients } = useClients();
   const createTask = useCreateTask();
+
+  const hasDefaultClient = !!defaultClientId;
 
   const clientOptions = [
     { value: "", label: "Zadanie ogólne (brak klienta)" },
@@ -63,8 +69,8 @@ export function CreateTaskDialog({
   } = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema) as Resolver<TaskFormValues>,
     defaultValues: {
-      clientId: "",
-      clientName: "",
+      clientId: defaultClientId ?? "",
+      clientName: defaultClientName ?? "",
       type: "call",
       title: "",
       description: "",
@@ -125,16 +131,27 @@ export function CreateTaskDialog({
 
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
         {/* Client select */}
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="clientId">Klient</Label>
-          <Select
-            id="clientId"
-            options={clientOptions}
-            value={watch("clientId")}
-            onChange={onClientChange}
-          />
-          <input type="hidden" {...register("clientName")} />
-        </div>
+        {hasDefaultClient ? (
+          <div className="flex flex-col gap-1.5">
+            <Label>Klient</Label>
+            <p className="text-sm font-medium text-foreground px-3 py-2 rounded-md border border-input bg-muted/30">
+              {defaultClientName}
+            </p>
+            <input type="hidden" {...register("clientId")} />
+            <input type="hidden" {...register("clientName")} />
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="clientId">Klient</Label>
+            <Select
+              id="clientId"
+              options={clientOptions}
+              value={watch("clientId")}
+              onChange={onClientChange}
+            />
+            <input type="hidden" {...register("clientName")} />
+          </div>
+        )}
 
         {/* Type + Title */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

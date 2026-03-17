@@ -12,15 +12,20 @@ import {
   Calendar,
   Clock,
   User,
-  Check,
   Upload,
   Image,
   File,
   Trash2,
   ExternalLink,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { Dialog, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/Dialog";
+import { Input } from "@/components/ui/Input";
+import { Label } from "@/components/ui/Label";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "@/components/ui/Toast";
 import { useClient } from "../api/useClient";
 import { useNotes, useCreateNote } from "../api/useNotes";
@@ -31,6 +36,8 @@ import {
 } from "../api/useDocuments";
 import { EditClientDialog } from "./EditClientDialog";
 import { useTasks } from "@/features/tasks/api/useTasks";
+import { TaskActions } from "@/features/tasks/components/TaskList";
+import { CreateTaskDialog } from "@/features/tasks/components/CreateTaskDialog";
 import {
   STAGE_LABELS,
   CLIENT_SOURCE_LABELS,
@@ -42,11 +49,13 @@ import {
   TASK_TYPE_EMOJI,
   type TaskType,
 } from "@/features/tasks/types/task";
-import { useDeals } from "@/features/deals/api/useDeals";
+import { useDeals, useCreateDeal } from "@/features/deals/api/useDeals";
 import {
   DEAL_STAGE_LABELS,
   DEAL_STAGE_COLORS,
+  dealFormSchema,
   type DealStage,
+  type DealFormValues,
 } from "@/features/deals/types/deal";
 import { cn } from "@/lib/cn";
 
@@ -214,17 +223,31 @@ function NotesTab({ clientId }: { clientId: string }) {
 
 // ─── Tasks Tab ───────────────────────────────────────────────
 
-function TasksTab({ clientId }: { clientId: string }) {
+function TasksTab({ clientId, clientName }: { clientId: string; clientName: string }) {
   const { data: allTasks, isLoading } = useTasks();
+  const [createOpen, setCreateOpen] = useState(false);
 
   const clientTasks = useMemo(() => {
     if (!allTasks) return [];
     return allTasks.filter((t) => t.clientId === clientId);
   }, [allTasks, clientId]);
 
+  const header = (
+    <div className="flex items-center justify-between mb-3">
+      <span className="text-sm text-muted-foreground">
+        {clientTasks.length > 0 ? `${clientTasks.length} zadań` : ""}
+      </span>
+      <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)}>
+        <Plus className="h-3.5 w-3.5 mr-1.5" />
+        Dodaj zadanie
+      </Button>
+    </div>
+  );
+
   if (isLoading) {
     return (
       <div className="flex flex-col gap-2">
+        {header}
         {Array.from({ length: 3 }).map((_, i) => (
           <div
             key={i}
@@ -244,76 +267,85 @@ function TasksTab({ clientId }: { clientId: string }) {
     );
   }
 
-  if (clientTasks.length === 0) {
-    return (
-      <div
-        className="flex flex-col items-center gap-2 rounded-xl p-12 text-center"
-        style={glassStyle}
-      >
-        <ClipboardList className="h-10 w-10 text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">
-          Brak zadań powiązanych z tym klientem.
-        </p>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col gap-2">
-      {clientTasks.map((task) => {
-        const isDone = task.status === "done" || task.status === "cancelled";
-        return (
-          <div
-            key={task.id}
-            className={`rounded-xl p-4 ${isDone ? "opacity-60" : ""}`}
-            style={{
-              ...glassStyle,
-              background: isDone
-                ? "rgba(30, 41, 59, 0.3)"
-                : "rgba(30, 41, 59, 0.5)",
-            }}
-          >
-            <div className="flex items-start gap-3">
-              <span className="mt-0.5 text-lg leading-none">
-                {TASK_TYPE_EMOJI[task.type as TaskType] ?? "📌"}
-              </span>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p
-                    className={`font-medium text-foreground ${isDone ? "line-through" : ""}`}
-                  >
-                    {task.title}
-                  </p>
-                  <Badge variant="secondary" className="text-[10px]">
-                    {TASK_TYPE_LABELS[task.type as TaskType] ?? task.type}
-                  </Badge>
-                  {task.status === "done" && (
-                    <Badge variant="success">Wykonane</Badge>
-                  )}
-                </div>
-                <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                  {task.dueDate && (
-                    <span className="flex items-center gap-1">
-                      <Calendar className="h-3 w-3" />
-                      {formatDate(task.dueDate)} {formatTime(task.dueDate)}
-                    </span>
-                  )}
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    {task.durationMin} minut
+    <>
+      {header}
+      {clientTasks.length === 0 ? (
+        <div
+          className="flex flex-col items-center gap-2 rounded-xl p-12 text-center"
+          style={glassStyle}
+        >
+          <ClipboardList className="h-10 w-10 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">
+            Brak zadań powiązanych z tym klientem.
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {clientTasks.map((task) => {
+            const isDone = task.status === "done" || task.status === "cancelled" || task.status === "system_cancelled";
+            return (
+              <div
+                key={task.id}
+                className={`rounded-xl p-4 ${isDone ? "opacity-60" : ""}`}
+                style={{
+                  ...glassStyle,
+                  background: isDone
+                    ? "rgba(30, 41, 59, 0.3)"
+                    : "rgba(30, 41, 59, 0.5)",
+                }}
+              >
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 text-lg leading-none">
+                    {TASK_TYPE_EMOJI[task.type as TaskType] ?? "📌"}
                   </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p
+                        className={`font-medium text-foreground ${isDone ? "line-through" : ""}`}
+                      >
+                        {task.title}
+                      </p>
+                      <Badge variant="secondary" className="text-[10px]">
+                        {TASK_TYPE_LABELS[task.type as TaskType] ?? task.type}
+                      </Badge>
+                      {task.status === "done" && (
+                        <Badge variant="success">Wykonane</Badge>
+                      )}
+                      {task.status === "cancelled" && (
+                        <Badge variant="warning">Anulowane</Badge>
+                      )}
+                      {task.status === "system_cancelled" && (
+                        <Badge variant="destructive">Anulowane (system)</Badge>
+                      )}
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                      {task.dueDate && (
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {formatDate(task.dueDate)} {formatTime(task.dueDate)}
+                        </span>
+                      )}
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {task.durationMin} minut
+                      </span>
+                    </div>
+                  </div>
+                  <TaskActions task={task} />
                 </div>
               </div>
-              {isDone && (
-                <div className="flex h-7 w-7 items-center justify-center rounded-full border border-emerald-500/40 text-emerald-500">
-                  <Check className="h-3.5 w-3.5" />
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      })}
-    </div>
+            );
+          })}
+        </div>
+      )}
+      <CreateTaskDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        defaultClientId={clientId}
+        defaultClientName={clientName}
+      />
+    </>
   );
 }
 
@@ -541,18 +573,60 @@ function formatCurrency(value: number): string {
   }).format(value);
 }
 
-function DealsTab({ clientId }: { clientId: string }) {
+function DealsTab({ clientId, clientName }: { clientId: string; clientName: string }) {
   const { data: allDeals, isLoading } = useDeals();
+  const createDeal = useCreateDeal();
   const navigate = useNavigate();
+  const [createOpen, setCreateOpen] = useState(false);
 
   const clientDeals = useMemo(() => {
     if (!allDeals) return [];
     return allDeals.filter((d) => d.clientId === clientId);
   }, [allDeals, clientId]);
 
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<DealFormValues>({
+    resolver: zodResolver(dealFormSchema),
+    defaultValues: {
+      clientId,
+      title: "",
+      value: 0,
+      stage: "potencjalne" as const,
+    },
+  });
+
+  const onSubmit = (values: DealFormValues) => {
+    createDeal.mutate(
+      { ...values, clientName },
+      {
+        onSuccess: () => {
+          reset();
+          setCreateOpen(false);
+        },
+      }
+    );
+  };
+
+  const header = (
+    <div className="flex items-center justify-between mb-3">
+      <span className="text-sm text-muted-foreground">
+        {clientDeals.length > 0 ? `${clientDeals.length} szans` : ""}
+      </span>
+      <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)}>
+        <Plus className="h-3.5 w-3.5 mr-1.5" />
+        Dodaj szansę
+      </Button>
+    </div>
+  );
+
   if (isLoading) {
     return (
       <div className="flex flex-col gap-2">
+        {header}
         {Array.from({ length: 2 }).map((_, i) => (
           <div key={i} className="rounded-xl p-4 animate-pulse" style={glassStyle}>
             <div className="flex items-center gap-3">
@@ -568,59 +642,117 @@ function DealsTab({ clientId }: { clientId: string }) {
     );
   }
 
-  if (clientDeals.length === 0) {
-    return (
-      <div
-        className="flex flex-col items-center gap-3 rounded-xl p-12 text-center"
-        style={glassStyle}
-      >
-        <span className="text-4xl">💰</span>
-        <p className="text-sm text-muted-foreground">
-          Brak szans sprzedażowych dla tego klienta.
-        </p>
-        <Button variant="outline" size="sm" onClick={() => navigate("/pipeline")}>
-          Przejdź do lejka sprzedaży
-        </Button>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col gap-2">
-      {clientDeals.map((deal) => {
-        const stageColor = DEAL_STAGE_COLORS[deal.stage as DealStage];
-        const stageLabel = DEAL_STAGE_LABELS[deal.stage as DealStage] ?? deal.stage;
+    <>
+      {header}
+      {clientDeals.length === 0 ? (
+        <div
+          className="flex flex-col items-center gap-3 rounded-xl p-12 text-center"
+          style={glassStyle}
+        >
+          <span className="text-4xl">💰</span>
+          <p className="text-sm text-muted-foreground">
+            Brak szans sprzedażowych dla tego klienta.
+          </p>
+          <Button variant="outline" size="sm" onClick={() => navigate("/pipeline")}>
+            Przejdź do lejka sprzedaży
+          </Button>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {clientDeals.map((deal) => {
+            const stageColor = DEAL_STAGE_COLORS[deal.stage as DealStage];
+            const stageLabel = DEAL_STAGE_LABELS[deal.stage as DealStage] ?? deal.stage;
 
-        return (
-          <div
-            key={deal.id}
-            className="rounded-xl p-4"
-            style={{
-              ...glassStyle,
-              borderLeft: `3px solid ${stageColor}`,
-            }}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">
-                  {deal.title}
-                </p>
-                <p className="mt-1 text-base font-semibold text-primary">
-                  {formatCurrency(deal.value)}
-                </p>
-              </div>
-              <Badge
-                variant="secondary"
-                className="shrink-0 text-xs"
-                style={{ borderColor: stageColor, color: stageColor }}
+            return (
+              <div
+                key={deal.id}
+                className="rounded-xl p-4 cursor-pointer transition-all hover:ring-1 hover:ring-white/20"
+                style={{
+                  ...glassStyle,
+                  borderLeft: `3px solid ${stageColor}`,
+                }}
+                onClick={() => navigate("/pipeline")}
+                title="Otwórz w lejku sprzedażowym"
               >
-                {stageLabel}
-              </Badge>
-            </div>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">
+                      {deal.title}
+                    </p>
+                    <p className="mt-1 text-base font-semibold text-primary">
+                      {formatCurrency(deal.value)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {deal.isRejected && (
+                      <Badge variant="destructive" className="text-[9px]">Odrzucony</Badge>
+                    )}
+                    {deal.isArchived && !deal.isRejected && (
+                      <Badge variant="success" className="text-[9px]">Zarchiwizowany</Badge>
+                    )}
+                    <Badge
+                      variant="secondary"
+                      className="shrink-0 text-xs"
+                      style={{ borderColor: stageColor, color: stageColor }}
+                    >
+                      {stageLabel}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Create deal dialog */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogHeader>
+          <DialogTitle>Nowa szansa sprzedażowa</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <Label>Klient</Label>
+            <p className="text-sm font-medium text-foreground px-3 py-2 rounded-md border border-input bg-muted/30">
+              {clientName}
+            </p>
+            <input type="hidden" {...register("clientId")} />
           </div>
-        );
-      })}
-    </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="deal-title">Tytuł *</Label>
+            <Input
+              id="deal-title"
+              placeholder="np. Hipoteka PKO BP"
+              {...register("title")}
+            />
+            {errors.title && (
+              <p className="text-xs text-destructive">{errors.title.message}</p>
+            )}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="deal-value">Kwota (PLN)</Label>
+            <Input
+              id="deal-value"
+              type="number"
+              placeholder="np. 500000"
+              {...register("value", { valueAsNumber: true })}
+            />
+            {errors.value && (
+              <p className="text-xs text-destructive">{errors.value.message}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
+              Anuluj
+            </Button>
+            <Button type="submit" disabled={createDeal.isPending}>
+              {createDeal.isPending ? "Dodawanie..." : "Dodaj"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </Dialog>
+    </>
   );
 }
 
@@ -780,9 +912,9 @@ export function ClientDetailsPage() {
 
       {/* Tab content */}
       {tab === "notes" && id && <NotesTab clientId={id} />}
-      {tab === "tasks" && id && <TasksTab clientId={id} />}
+      {tab === "tasks" && id && <TasksTab clientId={id} clientName={client.fullName} />}
       {tab === "documents" && id && <DocumentsTab clientId={id} />}
-      {tab === "deals" && id && <DealsTab clientId={id} />}
+      {tab === "deals" && id && <DealsTab clientId={id} clientName={client.fullName} />}
 
       {/* Edit client dialog */}
       <EditClientDialog

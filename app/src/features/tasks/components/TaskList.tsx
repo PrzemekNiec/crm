@@ -101,7 +101,7 @@ const TIME_OPTIONS = (() => {
 
 // ─── Reschedule Dialog ──────────────────────────────────────
 
-function RescheduleDialog({
+export function RescheduleDialog({
   task,
   open,
   onOpenChange,
@@ -181,7 +181,7 @@ function RescheduleDialog({
 
 // ─── Action Buttons ──────────────────────────────────────────
 
-function TaskActions({ task }: { task: TaskDTO }) {
+export function TaskActions({ task }: { task: TaskDTO }) {
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const complete = useCompleteTask();
   const deleteTask = useDeleteTask();

@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useTasks } from "@/features/tasks/api/useTasks";
 import { useLeads } from "@/features/leads/api/useLeads";
@@ -132,9 +133,14 @@ function FinancialWidgets({
   closedValue: number;
   activeCount: number;
 }) {
+  const navigate = useNavigate();
+
   return (
     <div className="grid gap-4 sm:grid-cols-3">
-      <div className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-5">
+      <div
+        className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-5 cursor-pointer transition-all hover:ring-1 hover:ring-primary/30"
+        onClick={() => navigate("/pipeline")}
+      >
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/20">
             <span className="text-lg">💰</span>
@@ -148,7 +154,10 @@ function FinancialWidgets({
         </div>
       </div>
 
-      <div className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-5">
+      <div
+        className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-5 cursor-pointer transition-all hover:ring-1 hover:ring-emerald-500/30"
+        onClick={() => navigate("/pipeline")}
+      >
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/20">
             <span className="text-lg">🏆</span>
@@ -162,7 +171,10 @@ function FinancialWidgets({
         </div>
       </div>
 
-      <div className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-5">
+      <div
+        className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-5 cursor-pointer transition-all hover:ring-1 hover:ring-blue-500/30"
+        onClick={() => navigate("/pipeline")}
+      >
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/20">
             <span className="text-lg">📂</span>
@@ -186,9 +198,14 @@ interface StatsProps {
 }
 
 function StatsCards({ todayCount, overdueCount, newLeadsCount }: StatsProps) {
+  const navigate = useNavigate();
+
   return (
     <div className="grid gap-4 sm:grid-cols-3">
-      <div className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-5">
+      <div
+        className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-5 cursor-pointer transition-all hover:ring-1 hover:ring-primary/30"
+        onClick={() => navigate("/tasks")}
+      >
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/20">
             <Calendar className="h-5 w-5 text-primary" />
@@ -200,7 +217,10 @@ function StatsCards({ todayCount, overdueCount, newLeadsCount }: StatsProps) {
         </div>
       </div>
 
-      <div className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-5">
+      <div
+        className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-5 cursor-pointer transition-all hover:ring-1 hover:ring-red-500/30"
+        onClick={() => navigate("/tasks")}
+      >
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-500/20">
             <AlertTriangle className="h-5 w-5 text-red-400" />
@@ -212,7 +232,10 @@ function StatsCards({ todayCount, overdueCount, newLeadsCount }: StatsProps) {
         </div>
       </div>
 
-      <div className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-5">
+      <div
+        className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-5 cursor-pointer transition-all hover:ring-1 hover:ring-amber-500/30"
+        onClick={() => navigate("/leads")}
+      >
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/20">
             <Zap className="h-5 w-5 text-amber-400" />
@@ -392,7 +415,13 @@ function TodayTimeline({ tasks }: { tasks: TaskDTO[] }) {
                 {task.clientName ? (
                   <>
                     <User className="h-3 w-3" />
-                    {task.clientName}
+                    {task.clientId ? (
+                      <a href={`/clients/${task.clientId}`} className="hover:text-blue-400 hover:underline transition-colors">
+                        {task.clientName}
+                      </a>
+                    ) : (
+                      task.clientName
+                    )}
                   </>
                 ) : (
                   <>
@@ -444,11 +473,18 @@ function OverdueTasks({ tasks }: { tasks: TaskDTO[] }) {
                 {task.title}
               </h4>
               <p className="text-xs text-red-300/60">
-                {task.clientName || "Zadanie ogólne"}
+                {task.clientId ? (
+                  <a href={`/clients/${task.clientId}`} className="hover:text-red-200 hover:underline transition-colors">
+                    {task.clientName || "Zadanie ogólne"}
+                  </a>
+                ) : (
+                  "Zadanie ogólne"
+                )}
                 {task.dueDate &&
                   ` · ${new Date(task.dueDate).toLocaleDateString("pl-PL")}`}
               </p>
             </div>
+            <TaskActionButtons task={task} />
           </div>
         ))}
       </div>
@@ -459,6 +495,8 @@ function OverdueTasks({ tasks }: { tasks: TaskDTO[] }) {
 // ─── New Leads Section ───────────────────────────────────────
 
 function NewLeadsSection({ leads }: { leads: LeadDTO[] }) {
+  const navigate = useNavigate();
+
   if (leads.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
@@ -473,7 +511,8 @@ function NewLeadsSection({ leads }: { leads: LeadDTO[] }) {
       {leads.map((lead) => (
         <div
           key={lead.id}
-          className="group flex items-center gap-3 rounded-lg border border-white/[0.06] bg-white/[0.03] p-3 transition-colors hover:bg-white/[0.06]"
+          className="group flex items-center gap-3 rounded-lg border border-white/[0.06] bg-white/[0.03] p-3 transition-colors hover:bg-white/[0.06] cursor-pointer"
+          onClick={() => navigate("/leads")}
         >
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-500/20">
             <User className="h-4 w-4 text-amber-400" />
