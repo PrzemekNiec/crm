@@ -1,10 +1,14 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { toast } from "@/components/ui/Toast";
+import { useAuthStore } from "@/store/useAuthStore";
 import { useTasks } from "@/features/tasks/api/useTasks";
-import { useCompleteTask } from "@/features/tasks/api/useUpdateTask";
+import { useCompleteTask, useRescheduleTask } from "@/features/tasks/api/useUpdateTask";
 import { useDeleteTask } from "@/features/tasks/api/useDeleteTask";
+import { tasksQueryKey } from "@/features/tasks/api/tasks";
 import { TASK_TYPE_EMOJI } from "@/features/tasks/types/task";
 import type { TaskDTO } from "@/features/tasks/types/task";
 import { cn } from "@/lib/cn";
@@ -157,6 +161,12 @@ export function CalendarView() {
   const { data: tasks = [] } = useTasks();
   const [weekStart, setWeekStart] = useState(() => getMonday(new Date()));
   const [selectedTask, setSelectedTask] = useState<TaskDTO | null>(null);
+  const [dragOverCell, setDragOverCell] = useState<{ dayIdx: number; hour: number } | null>(null);
+  const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
+
+  const uid = useAuthStore((s) => s.user?.uid);
+  const qc = useQueryClient();
+  const reschedule = useRescheduleTask();
 
   const today = new Date();
 
@@ -193,6 +203,90 @@ export function CalendarView() {
   const goToday = useCallback(() => setWeekStart(getMonday(new Date())), []);
   const goPrev = useCallback(() => setWeekStart((w) => addDays(w, -7)), []);
   const goNext = useCallback(() => setWeekStart((w) => addDays(w, 7)), []);
+
+  // ─── Drag & Drop handlers ──────────────────────────────────
+
+  const handleDragStart = useCallback((e: React.DragEvent, taskId: string) => {
+    e.dataTransfer.setData("text/plain", taskId);
+    e.dataTransfer.effectAllowed = "move";
+    setDraggingTaskId(taskId);
+  }, []);
+
+  const handleDragEnd = useCallback(() => {
+    setDraggingTaskId(null);
+    setDragOverCell(null);
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent, dayIdx: number) => {
+      e.preventDefault();
+      setDragOverCell(null);
+      setDraggingTaskId(null);
+
+      const taskId = e.dataTransfer.getData("text/plain");
+      if (!taskId || !uid) return;
+
+      const task = weekTasks.find((t) => t.id === taskId);
+      if (!task) return;
+
+      // Calculate new time from drop Y position
+      const rect = e.currentTarget.getBoundingClientRect();
+      const offsetY = e.clientY - rect.top;
+      const rawHour = HOUR_START + offsetY / ROW_HEIGHT;
+      const rawMinutes = rawHour * 60;
+
+      // Build new date
+      const targetDay = weekDays[dayIdx];
+      const newDate = new Date(targetDay);
+      newDate.setHours(0, Math.round(rawMinutes - HOUR_START * 60), 0, 0);
+      // Recalculate from absolute minutes
+      const absMinutes = HOUR_START * 60 + (offsetY / ROW_HEIGHT) * 60;
+      const snappedHour = Math.floor(absMinutes / 60);
+      const snappedMin = Math.round((absMinutes % 60) / 15) * 15;
+      newDate.setHours(snappedHour, snappedMin, 0, 0);
+
+      // Clamp to valid range
+      if (newDate.getHours() < HOUR_START) newDate.setHours(HOUR_START, 0, 0, 0);
+      if (newDate.getHours() >= HOUR_END) newDate.setHours(HOUR_END - 1, 45, 0, 0);
+
+      // Block drops in the past
+      if (newDate.getTime() < Date.now()) {
+        toast.error("Nie można przenieść zadania w przeszłość");
+        return;
+      }
+
+      const newDueDate = newDate.toISOString();
+      const oldDueDate = task.dueDate;
+
+      // Optimistic update
+      qc.setQueryData<TaskDTO[]>(tasksQueryKey(uid), (old) =>
+        old?.map((t) => (t.id === taskId ? { ...t, dueDate: newDueDate } : t))
+      );
+
+      // Persist to Firestore + Google Calendar sync
+      reschedule.mutate(
+        {
+          taskId: task.id,
+          dueDate: newDueDate,
+          title: task.title,
+          description: task.description,
+          durationMin: task.durationMin,
+          googleEventId: task.googleEventId,
+          syncToGoogleCalendar: task.syncToGoogleCalendar,
+          type: task.type,
+        },
+        {
+          onError: () => {
+            // Rollback on failure
+            qc.setQueryData<TaskDTO[]>(tasksQueryKey(uid), (old) =>
+              old?.map((t) => (t.id === taskId ? { ...t, dueDate: oldDueDate } : t))
+            );
+          },
+        }
+      );
+    },
+    [weekTasks, weekDays, uid, qc, reschedule]
+  );
 
   return (
     <div className="flex flex-col h-full">
@@ -257,19 +351,38 @@ export function CalendarView() {
             </div>
           ))}
 
-          {/* Day columns */}
+          {/* Day columns (drop zones) */}
           {weekDays.map((d, dayIdx) => {
             const isToday = isSameDay(d, today);
             const dayTasks = tasksByDay.get(dayIdx) ?? [];
+            const isDragOver = dragOverCell?.dayIdx === dayIdx;
 
             return (
               <div
                 key={dayIdx}
                 className={cn(
-                  "relative border-r border-border",
-                  isToday && "bg-primary/[0.03]"
+                  "relative border-r border-border transition-colors",
+                  isToday && "bg-primary/[0.03]",
+                  isDragOver && "bg-blue-500/[0.08]"
                 )}
                 style={{ gridColumn: dayIdx + 2, gridRow: `1 / ${HOURS.length + 1}` }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const offsetY = e.clientY - rect.top;
+                  const rawHour = Math.floor(HOUR_START + offsetY / ROW_HEIGHT);
+                  const clampedHour = Math.max(HOUR_START, Math.min(HOUR_END - 1, rawHour));
+                  if (!dragOverCell || dragOverCell.dayIdx !== dayIdx || dragOverCell.hour !== clampedHour) {
+                    setDragOverCell({ dayIdx, hour: clampedHour });
+                  }
+                }}
+                onDragLeave={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                    setDragOverCell(null);
+                  }
+                }}
+                onDrop={(e) => handleDrop(e, dayIdx)}
               >
                 {/* Hour grid lines */}
                 {HOURS.map((hour) => (
@@ -280,7 +393,17 @@ export function CalendarView() {
                   />
                 ))}
 
-                {/* Task blocks */}
+                {/* Drop indicator line */}
+                {isDragOver && dragOverCell && (
+                  <div
+                    className="absolute inset-x-0 h-0.5 bg-primary z-20 pointer-events-none"
+                    style={{ top: (dragOverCell.hour - HOUR_START) * ROW_HEIGHT }}
+                  >
+                    <div className="absolute -left-1 -top-1 h-2.5 w-2.5 rounded-full bg-primary" />
+                  </div>
+                )}
+
+                {/* Task blocks (draggable) */}
                 {dayTasks.map((task) => {
                   const due = new Date(task.dueDate!);
                   const hour = due.getHours();
@@ -289,6 +412,7 @@ export function CalendarView() {
                   const duration = task.durationMin > 0 ? task.durationMin : 30;
                   const blockHeight = Math.max((duration / 60) * ROW_HEIGHT, 24);
                   const colors = TYPE_COLORS[task.type] ?? TYPE_COLORS.custom;
+                  const isDragging = draggingTaskId === task.id;
 
                   // Skip if outside visible hours
                   if (hour < HOUR_START || hour >= HOUR_END) return null;
@@ -296,14 +420,18 @@ export function CalendarView() {
                   return (
                     <div
                       key={task.id}
-                      className="absolute inset-x-1 group"
+                      className={cn("absolute inset-x-1 group", isDragging && "opacity-40")}
                       style={{ top: topOffset, height: blockHeight }}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, task.id)}
+                      onDragEnd={handleDragEnd}
                     >
                       <button
                         onClick={() => setSelectedTask(selectedTask?.id === task.id ? null : task)}
                         className={cn(
-                          "relative w-full h-full rounded-md border px-1.5 py-0.5 text-left overflow-hidden cursor-pointer transition-all",
+                          "relative w-full h-full rounded-md border px-1.5 py-0.5 text-left overflow-hidden cursor-grab transition-all",
                           "hover:ring-1 hover:ring-white/20",
+                          isDragging && "cursor-grabbing",
                           colors.bg, colors.border
                         )}
                       >
