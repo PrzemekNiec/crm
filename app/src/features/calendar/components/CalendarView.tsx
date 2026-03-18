@@ -150,8 +150,11 @@ function TaskPopup({
   return (
     <div
       ref={popupRef}
-      className="absolute z-30 w-72 rounded-lg border border-border bg-card p-4 shadow-xl"
-      style={{ top: 0, right: "calc(100% + 8px)" }}
+      className={cn(
+        "z-30 rounded-lg border border-border bg-card p-4 shadow-xl",
+        "fixed inset-x-3 bottom-20",
+        "md:absolute md:inset-x-auto md:bottom-auto md:top-0 md:w-72 md:right-[calc(100%+8px)]"
+      )}
     >
       <div className="flex items-start justify-between gap-2 mb-1">
         <div className="min-w-0">
@@ -271,6 +274,24 @@ export function CalendarView() {
 
   const today = new Date();
 
+  // ─── Mobile day view ──────────────────────────────────────
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth < 768 : false
+  );
+  const [mobileDayIdx, setMobileDayIdx] = useState(() => {
+    const day = new Date().getDay();
+    return day === 0 ? 6 : day - 1;
+  });
+  const touchStartX = useRef<number | null>(null);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    const handler = (e: MediaQueryListEvent) => setIsMobile(!e.matches);
+    setIsMobile(!mq.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
   const weekDays = useMemo(
     () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
     [weekStart]
@@ -301,9 +322,52 @@ export function CalendarView() {
     return map;
   }, [weekTasks, weekDays]);
 
-  const goToday = useCallback(() => setWeekStart(getMonday(new Date())), []);
+  const goToday = useCallback(() => {
+    setWeekStart(getMonday(new Date()));
+    const day = new Date().getDay();
+    setMobileDayIdx(day === 0 ? 6 : day - 1);
+  }, []);
   const goPrev = useCallback(() => setWeekStart((w) => addDays(w, -7)), []);
   const goNext = useCallback(() => setWeekStart((w) => addDays(w, 7)), []);
+
+  const goPrevDay = useCallback(() => {
+    setMobileDayIdx((prev) => {
+      if (prev === 0) {
+        setWeekStart((w) => addDays(w, -7));
+        return 6;
+      }
+      return prev - 1;
+    });
+  }, []);
+
+  const goNextDay = useCallback(() => {
+    setMobileDayIdx((prev) => {
+      if (prev === 6) {
+        setWeekStart((w) => addDays(w, 7));
+        return 0;
+      }
+      return prev + 1;
+    });
+  }, []);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const diff = e.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+    if (Math.abs(diff) > 50) {
+      if (diff > 0) goPrevDay();
+      else goNextDay();
+    }
+  }, [goPrevDay, goNextDay]);
+
+  const mobileDay = weekDays[mobileDayIdx];
+  const visibleDays = isMobile
+    ? [{ date: mobileDay, dayIdx: mobileDayIdx, colIdx: 2 }]
+    : weekDays.map((d, i) => ({ date: d, dayIdx: i, colIdx: i + 2 }));
 
   // ─── Drag & Drop handlers ──────────────────────────────────
 
@@ -392,16 +456,15 @@ export function CalendarView() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4 px-4 py-3 md:px-6 border-b border-border shrink-0">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-2 px-4 py-3 md:px-6 border-b border-border shrink-0">
+        {/* Desktop */}
+        <div className="hidden md:flex items-center gap-3">
           <h1 className="text-lg font-bold text-foreground capitalize">
             {formatMonthYear(weekStart)}
           </h1>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={goToday}>
-            Dziś
-          </Button>
+        <div className="hidden md:flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={goToday}>Dziś</Button>
           <Button variant="ghost" size="sm" onClick={goPrev}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -409,10 +472,25 @@ export function CalendarView() {
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
+        {/* Mobile */}
+        <div className="flex md:hidden items-center flex-1 min-w-0">
+          <Button variant="ghost" size="sm" className="shrink-0" onClick={goPrevDay}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <h1 className="text-sm font-bold text-foreground capitalize text-center flex-1 truncate">
+            {mobileDay.toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long" })}
+          </h1>
+          <Button variant="ghost" size="sm" className="shrink-0" onClick={goNextDay}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="md:hidden">
+          <Button variant="outline" size="sm" onClick={goToday}>Dziś</Button>
+        </div>
       </div>
 
-      {/* Day headers */}
-      <div className="grid shrink-0" style={{ gridTemplateColumns: "56px repeat(7, 1fr)" }}>
+      {/* Day headers (desktop only) */}
+      <div className="hidden md:grid shrink-0" style={{ gridTemplateColumns: "56px repeat(7, 1fr)" }}>
         {/* Gutter */}
         <div className="border-b border-r border-border" />
         {weekDays.map((d, i) => {
@@ -439,8 +517,12 @@ export function CalendarView() {
       </div>
 
       {/* Time grid */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="grid relative" style={{ gridTemplateColumns: "56px repeat(7, 1fr)", minHeight: HOURS.length * ROW_HEIGHT }}>
+      <div
+        className="flex-1 overflow-y-auto"
+        onTouchStart={isMobile ? handleTouchStart : undefined}
+        onTouchEnd={isMobile ? handleTouchEnd : undefined}
+      >
+        <div className="grid relative" style={{ gridTemplateColumns: isMobile ? "40px 1fr" : "56px repeat(7, 1fr)", minHeight: HOURS.length * ROW_HEIGHT }}>
           {/* Hour labels + horizontal lines */}
           {HOURS.map((hour) => (
             <div
@@ -453,7 +535,7 @@ export function CalendarView() {
           ))}
 
           {/* Day columns (drop zones) */}
-          {weekDays.map((d, dayIdx) => {
+          {visibleDays.map(({ date: d, dayIdx, colIdx }) => {
             const isToday = isSameDay(d, today);
             const dayTasks = tasksByDay.get(dayIdx) ?? [];
             const isDragOver = dragOverCell?.dayIdx === dayIdx;
@@ -466,7 +548,7 @@ export function CalendarView() {
                   isToday && "bg-primary/[0.03]",
                   isDragOver && "bg-blue-500/[0.08]"
                 )}
-                style={{ gridColumn: dayIdx + 2, gridRow: `1 / ${HOURS.length + 1}` }}
+                style={{ gridColumn: colIdx, gridRow: `1 / ${HOURS.length + 1}` }}
                 onDragOver={(e) => {
                   e.preventDefault();
                   e.dataTransfer.dropEffect = "move";
