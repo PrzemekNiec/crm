@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -37,6 +37,7 @@ import {
   Plus,
   User,
   Clock,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Pencil,
@@ -103,6 +104,28 @@ export function PipelinePage() {
   const [addOpen, setAddOpen] = useState(false);
   const [historyDeal, setHistoryDeal] = useState<DealDTO | null>(null);
   const [settleDeal, setSettleDeal] = useState<DealDTO | null>(null);
+  const [activeTab, setActiveTab] = useState<"lejek" | "archiwum">("lejek");
+  const [expandedStages, setExpandedStages] = useState<Set<DealStage>>(new Set(DEAL_STAGES));
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth < 768 : false
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    const handler = (e: MediaQueryListEvent) => setIsMobile(!e.matches);
+    setIsMobile(!mq.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  const toggleStage = useCallback((stage: DealStage) => {
+    setExpandedStages((prev) => {
+      const next = new Set(prev);
+      if (next.has(stage)) next.delete(stage);
+      else next.add(stage);
+      return next;
+    });
+  }, []);
 
   const dealsByStage = useMemo(() => {
     const grouped: Record<DealStage, DealDTO[]> = {
@@ -125,7 +148,7 @@ export function PipelinePage() {
     dealsByStage[stage].reduce((sum, d) => sum + d.value, 0);
 
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">
+    <div className="flex flex-1 flex-col gap-4 p-4 md:p-6 min-w-0 overflow-x-hidden">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">Lejek sprzedaży</h1>
@@ -135,35 +158,130 @@ export function PipelinePage() {
         </Button>
       </div>
 
-      {/* Kanban board — 6 columns */}
-      {isLoading ? (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-6">
-          {DEAL_STAGES.map((s) => (
-            <div key={s} className="rounded-xl p-3 animate-pulse" style={GLASS}>
-              <div className="h-5 w-20 rounded bg-muted mb-3" />
-              <div className="space-y-2">
-                <div className="h-16 rounded-lg bg-muted" />
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-6 items-start">
-          {DEAL_STAGES.map((stage) => (
-            <StageColumn
-              key={stage}
-              stage={stage}
-              deals={dealsByStage[stage]}
-              total={stageTotal(stage)}
-              onCardClick={setHistoryDeal}
-              onArchive={setSettleDeal}
-            />
-          ))}
+      {/* Mobile tabs */}
+      {isMobile && (
+        <div className="flex rounded-lg overflow-hidden border border-border">
+          <button
+            className={cn(
+              "flex-1 py-2.5 text-sm font-medium transition-colors cursor-pointer",
+              activeTab === "lejek"
+                ? "bg-primary text-primary-foreground"
+                : "bg-card text-muted-foreground"
+            )}
+            onClick={() => setActiveTab("lejek")}
+          >
+            Lejek
+          </button>
+          <button
+            className={cn(
+              "flex-1 py-2.5 text-sm font-medium transition-colors cursor-pointer",
+              activeTab === "archiwum"
+                ? "bg-primary text-primary-foreground"
+                : "bg-card text-muted-foreground"
+            )}
+            onClick={() => setActiveTab("archiwum")}
+          >
+            Archiwum
+          </button>
         </div>
       )}
 
-      {/* Archived deals table */}
-      {!isLoading && <ArchivedDealsTable deals={deals} />}
+      {/* Kanban — desktop grid / mobile accordion */}
+      {(!isMobile || activeTab === "lejek") && (
+        isLoading ? (
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-6">
+            {DEAL_STAGES.map((s) => (
+              <div key={s} className="rounded-xl p-3 animate-pulse" style={GLASS}>
+                <div className="h-5 w-20 rounded bg-muted mb-3" />
+                <div className="space-y-2">
+                  <div className="h-16 rounded-lg bg-muted" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : isMobile ? (
+          /* Mobile accordion */
+          <div className="space-y-2">
+            {DEAL_STAGES.map((stage) => {
+              const deals = dealsByStage[stage];
+              const isExpanded = expandedStages.has(stage);
+              const color = DEAL_STAGE_COLORS[stage];
+              return (
+                <div key={stage} className="rounded-xl overflow-hidden" style={GLASS}>
+                  <button
+                    className="w-full flex items-center justify-between px-3 py-2.5 cursor-pointer"
+                    onClick={() => toggleStage(stage)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={{ backgroundColor: color }}
+                      />
+                      <span className="text-sm font-semibold text-foreground">
+                        {DEAL_STAGE_LABELS[stage]}
+                      </span>
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                        {deals.length}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {stageTotal(stage) > 0 && (
+                        <span className="text-xs font-medium text-primary">
+                          {formatCurrency(stageTotal(stage))}
+                        </span>
+                      )}
+                      <ChevronDown
+                        className={cn(
+                          "h-4 w-4 text-muted-foreground transition-transform",
+                          isExpanded && "rotate-180"
+                        )}
+                      />
+                    </div>
+                  </button>
+                  {isExpanded && deals.length > 0 && (
+                    <div className="px-3 pb-3 space-y-2">
+                      {deals.map((deal) => (
+                        <DealCard
+                          key={deal.id}
+                          deal={deal}
+                          stageColor={color}
+                          onClick={() => setHistoryDeal(deal)}
+                          onArchive={() => setSettleDeal(deal)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {isExpanded && deals.length === 0 && (
+                    <div className="px-3 pb-3">
+                      <p className="text-xs text-muted-foreground text-center py-2">
+                        Brak spraw
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-6 items-start min-w-0">
+            {DEAL_STAGES.map((stage) => (
+              <StageColumn
+                key={stage}
+                stage={stage}
+                deals={dealsByStage[stage]}
+                total={stageTotal(stage)}
+                onCardClick={setHistoryDeal}
+                onArchive={setSettleDeal}
+              />
+            ))}
+          </div>
+        )
+      )}
+
+      {/* Archived deals */}
+      {(!isMobile || activeTab === "archiwum") && !isLoading && (
+        <ArchivedDealsTable deals={deals} />
+      )}
 
       <AddDealDialog open={addOpen} onOpenChange={setAddOpen} />
       <DealHistoryModal deal={historyDeal} onClose={() => setHistoryDeal(null)} />
