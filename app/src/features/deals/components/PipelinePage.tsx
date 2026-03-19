@@ -9,6 +9,8 @@ import {
   useUpdateDealTitle,
   useUpdateDealNotes,
   useUpdateDealValue,
+  useAddDealNote,
+  useToggleDealWatch,
   useToggleCPRegistration,
   useUpdateDealCommission,
   useArchiveDeal,
@@ -44,6 +46,9 @@ import {
   Check,
   Archive,
   XCircle,
+  Eye,
+  EyeOff,
+  Send,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useForm } from "react-hook-form";
@@ -902,8 +907,13 @@ function DealCard({
   const updateTitle = useUpdateDealTitle();
   const updateValue = useUpdateDealValue();
   const toggleCP = useToggleCPRegistration();
+  const addNote = useAddDealNote();
+  const toggleWatch = useToggleDealWatch();
   const uid = useAuthStore((s) => s.user?.uid);
   const qc = useQueryClient();
+
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [noteText, setNoteText] = useState("");
 
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(deal.title);
@@ -916,6 +926,15 @@ function DealCard({
   const { prev, next } = getAdjacentStages(deal.stage);
   const isWyplata = deal.stage === "wyplata";
   const isCP = deal.isRegisteredInCP ?? false;
+  const isWatched = deal.isWatched ?? false;
+
+  const sortedNotes = useMemo(
+    () =>
+      [...(deal.dealNotes ?? [])].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      ),
+    [deal.dealNotes]
+  );
 
   const startEditing = () => {
     setEditValue(deal.title);
@@ -956,7 +975,6 @@ function DealCard({
   };
 
   const moveTo = (newStage: DealStage) => {
-    // Optimistic update
     if (uid) {
       qc.setQueryData<DealDTO[]>(dealsQueryKey(uid), (old) =>
         old?.map((d) =>
@@ -967,6 +985,13 @@ function DealCard({
     updateStage.mutate({ dealId: deal.id, stage: newStage });
   };
 
+  const submitNote = () => {
+    const trimmed = noteText.trim();
+    if (!trimmed) return;
+    addNote.mutate({ dealId: deal.id, text: trimmed });
+    setNoteText("");
+  };
+
   // Glow for Wypłata stage
   const glowShadow = isWyplata
     ? isCP
@@ -974,13 +999,11 @@ function DealCard({
       : "0 0 15px rgba(234, 179, 8, 0.6)"
     : undefined;
 
-  const hasNotes = !!(deal.notes && deal.notes.trim());
-
   return (
     <div
       className={cn(
-        "rounded-lg p-2.5 cursor-pointer transition-shadow",
-        hasNotes && "animate-pulse-border"
+        "rounded-lg p-2.5 transition-shadow",
+        isWatched && "animate-pulse-border"
       )}
       style={{
         ...GLASS_CARD,
@@ -988,30 +1011,33 @@ function DealCard({
         boxShadow: glowShadow
           ? `${GLASS_CARD.boxShadow}, ${glowShadow}`
           : GLASS_CARD.boxShadow,
-        ...(hasNotes
+        ...(isWatched
           ? { border: "1px solid rgba(239, 68, 68, 0.7)" }
           : {}),
       }}
-      onClick={onClick}
     >
       {/* Content */}
       <div className="min-w-0">
         {/* Client name — primary label */}
         {deal.clientName && (
-          <div className="flex items-center gap-1 text-xs font-medium text-foreground" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-1 text-xs font-medium text-foreground">
             <User className="h-3 w-3 shrink-0 text-muted-foreground" />
-            <Link to={`/clients/${deal.clientId}`} className="truncate hover:text-blue-400 hover:underline transition-colors">
+            <Link
+              to={`/clients/${deal.clientId}`}
+              onClick={(e) => e.stopPropagation()}
+              className="truncate hover:text-blue-400 hover:underline transition-colors"
+            >
               {deal.clientName}
             </Link>
+            {isWatched && (
+              <Eye className="h-3 w-3 shrink-0 text-red-400 ml-auto" />
+            )}
           </div>
         )}
 
         {/* Deal title — editable */}
         {isEditing ? (
-          <div
-            className="mt-0.5 flex items-center gap-1"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="mt-0.5 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
             <input
               ref={inputRef}
               value={editValue}
@@ -1051,10 +1077,7 @@ function DealCard({
 
         {/* Deal value — editable */}
         {isEditingValue ? (
-          <div
-            className="mt-0.5 flex items-center gap-1"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="mt-0.5 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
             <input
               ref={valueInputRef}
               type="number"
@@ -1093,15 +1116,12 @@ function DealCard({
         )}
       </div>
 
-      {/* Stage arrows */}
-      <div
-        className="mt-2 flex items-center justify-between"
-        onClick={(e) => e.stopPropagation()}
-      >
+      {/* Stage arrows + expand toggle */}
+      <div className="mt-2 flex items-center justify-between">
         <button
           type="button"
           disabled={!prev}
-          onClick={() => prev && moveTo(prev)}
+          onClick={(e) => { e.stopPropagation(); prev && moveTo(prev); }}
           className={cn(
             "flex h-6 w-6 items-center justify-center rounded-full border transition-colors cursor-pointer",
             prev
@@ -1113,14 +1133,24 @@ function DealCard({
           <ChevronLeft className="h-3.5 w-3.5" />
         </button>
 
-        <span className="text-[9px] text-muted-foreground/60 font-medium">
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}
+          className="flex items-center gap-0.5 text-[9px] text-muted-foreground/60 font-medium hover:text-muted-foreground transition-colors cursor-pointer"
+        >
           {DEAL_STAGE_LABELS[deal.stage]}
-        </span>
+          <ChevronDown
+            className={cn(
+              "h-3 w-3 transition-transform",
+              isExpanded && "rotate-180"
+            )}
+          />
+        </button>
 
         <button
           type="button"
           disabled={!next}
-          onClick={() => next && moveTo(next)}
+          onClick={(e) => { e.stopPropagation(); next && moveTo(next); }}
           className={cn(
             "flex h-6 w-6 items-center justify-center rounded-full border transition-colors cursor-pointer",
             next
@@ -1132,6 +1162,88 @@ function DealCard({
           <ChevronRight className="h-3.5 w-3.5" />
         </button>
       </div>
+
+      {/* Expanded section */}
+      {isExpanded && (
+        <div
+          className="mt-2 space-y-2 border-t border-white/[0.08] pt-2"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Action buttons: Przypilnuj + Historia */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => toggleWatch.mutate({ dealId: deal.id, isWatched: !isWatched })}
+              className={cn(
+                "flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors cursor-pointer border",
+                isWatched
+                  ? "border-red-500/40 bg-red-500/15 text-red-400 hover:bg-red-500/25"
+                  : "border-white/10 text-muted-foreground hover:text-foreground hover:border-white/20"
+              )}
+            >
+              {isWatched ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+              Przypilnuj
+            </button>
+            <button
+              type="button"
+              onClick={onClick}
+              className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium border border-white/10 text-muted-foreground hover:text-foreground hover:border-white/20 transition-colors cursor-pointer"
+            >
+              <Clock className="h-3 w-3" />
+              Historia
+            </button>
+          </div>
+
+          {/* Note input */}
+          <div className="flex gap-1.5">
+            <textarea
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  submitNote();
+                }
+              }}
+              placeholder="Dodaj notatkę..."
+              rows={1}
+              className="flex-1 rounded-md bg-white/[0.06] border border-white/[0.12] px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-primary/50 resize-none"
+            />
+            <button
+              type="button"
+              onClick={submitNote}
+              disabled={!noteText.trim()}
+              className={cn(
+                "flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors cursor-pointer",
+                noteText.trim()
+                  ? "bg-primary/20 text-primary hover:bg-primary/30"
+                  : "text-muted-foreground/30 cursor-default"
+              )}
+            >
+              <Send className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          {/* Notes list */}
+          {sortedNotes.length > 0 && (
+            <div className="space-y-1.5 max-h-32 overflow-y-auto">
+              {sortedNotes.map((note, i) => (
+                <div
+                  key={i}
+                  className="rounded-md bg-white/[0.04] px-2 py-1.5 text-xs"
+                >
+                  <p className="text-foreground/90 whitespace-pre-wrap break-words">
+                    {note.text}
+                  </p>
+                  <p className="mt-0.5 text-[10px] text-muted-foreground/60">
+                    {formatDate(note.createdAt)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* CP checkbox + Archive — only in Wypłata */}
       {isWyplata && (

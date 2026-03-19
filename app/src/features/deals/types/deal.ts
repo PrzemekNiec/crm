@@ -38,6 +38,13 @@ export interface DealHistoryEntry {
   timestamp: string; // ISO
 }
 
+// ─── Deal note entry ────────────────────────────────────────
+
+export interface DealNoteEntry {
+  text: string;
+  createdAt: string; // ISO
+}
+
 // ─── Deal schema ─────────────────────────────────────────────
 
 export const dealFormSchema = z.object({
@@ -71,6 +78,8 @@ export interface DealDTO {
   value: number;
   stage: DealStage;
   notes?: string;
+  dealNotes?: DealNoteEntry[];
+  isWatched?: boolean;
   isRegisteredInCP?: boolean;
   history: DealHistoryEntry[];
   createdAt: string; // ISO

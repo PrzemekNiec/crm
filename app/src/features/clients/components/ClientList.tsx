@@ -167,16 +167,24 @@ export function ClientList({ searchQuery }: ClientListProps) {
                 <td className="px-4 py-3">
                   <div className="flex flex-col gap-0.5 text-muted-foreground">
                     {client.phone && (
-                      <span className="flex items-center gap-1.5">
+                      <a
+                        href={`tel:${client.phone}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-1.5 hover:text-primary transition-colors"
+                      >
                         <Phone className="h-3 w-3" />
                         {client.phone}
-                      </span>
+                      </a>
                     )}
                     {client.email && (
-                      <span className="flex items-center gap-1.5">
+                      <a
+                        href={`mailto:${client.email}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-1.5 hover:text-primary transition-colors"
+                      >
                         <Mail className="h-3 w-3" />
                         {client.email}
-                      </span>
+                      </a>
                     )}
                     {!client.phone && !client.email && (
                       <span className="text-xs italic">Brak danych</span>
@@ -240,18 +248,28 @@ export function ClientList({ searchQuery }: ClientListProps) {
               </Badge>
             </div>
 
-            <div className="mt-2 flex flex-col gap-1 text-sm text-muted-foreground">
-              {client.phone && (
-                <span className="flex items-center gap-1.5">
-                  <Phone className="h-3 w-3" />
+            <div className="mt-2 flex items-center justify-between gap-2 text-sm text-muted-foreground">
+              {client.phone ? (
+                <a
+                  href={`tel:${client.phone}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex items-center gap-1.5 py-1 hover:text-primary active:text-primary transition-colors"
+                >
+                  <Phone className="h-3.5 w-3.5" />
                   {client.phone}
-                </span>
+                </a>
+              ) : (
+                <span />
               )}
               {client.email && (
-                <span className="flex items-center gap-1.5">
-                  <Mail className="h-3 w-3" />
-                  {client.email}
-                </span>
+                <a
+                  href={`mailto:${client.email}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex items-center gap-1.5 py-1 hover:text-primary active:text-primary transition-colors"
+                >
+                  <Mail className="h-3.5 w-3.5" />
+                  <span className="truncate max-w-[180px]">{client.email}</span>
+                </a>
               )}
             </div>
 

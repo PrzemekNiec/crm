@@ -8,6 +8,8 @@ import {
   updateDealTitle,
   updateDealValue,
   updateDealNotes,
+  addDealNote,
+  toggleDealWatch,
   toggleCPRegistration,
   updateDealCommission,
   archiveDeal,
@@ -133,6 +135,77 @@ export function useUpdateDealNotes() {
     },
     onError: () => {
       toast.error("Nie udało się zapisać notatki");
+    },
+  });
+}
+
+// ─── Add deal note ──────────────────────────────────────
+
+export function useAddDealNote() {
+  const uid = useAuthStore((s) => s.user?.uid);
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ dealId, text }: { dealId: string; text: string }) => {
+      if (!uid) throw new Error("Brak zalogowanego użytkownika");
+      return addDealNote(uid, dealId, text);
+    },
+    onMutate: async ({ dealId, text }) => {
+      if (!uid) return;
+      await qc.cancelQueries({ queryKey: dealsQueryKey(uid) });
+      const previous = qc.getQueryData<DealDTO[]>(dealsQueryKey(uid));
+      const now = new Date().toISOString();
+      qc.setQueryData<DealDTO[]>(dealsQueryKey(uid), (old) =>
+        old?.map((d) =>
+          d.id === dealId
+            ? { ...d, dealNotes: [...(d.dealNotes ?? []), { text, createdAt: now }] }
+            : d
+        )
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (uid && context?.previous) {
+        qc.setQueryData(dealsQueryKey(uid), context.previous);
+      }
+      toast.error("Nie udało się dodać notatki");
+    },
+    onSettled: () => {
+      if (uid) qc.invalidateQueries({ queryKey: dealsQueryKey(uid) });
+    },
+  });
+}
+
+// ─── Toggle deal watch flag ─────────────────────────────
+
+export function useToggleDealWatch() {
+  const uid = useAuthStore((s) => s.user?.uid);
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ dealId, isWatched }: { dealId: string; isWatched: boolean }) => {
+      if (!uid) throw new Error("Brak zalogowanego użytkownika");
+      return toggleDealWatch(uid, dealId, isWatched);
+    },
+    onMutate: async ({ dealId, isWatched }) => {
+      if (!uid) return;
+      await qc.cancelQueries({ queryKey: dealsQueryKey(uid) });
+      const previous = qc.getQueryData<DealDTO[]>(dealsQueryKey(uid));
+      qc.setQueryData<DealDTO[]>(dealsQueryKey(uid), (old) =>
+        old?.map((d) =>
+          d.id === dealId ? { ...d, isWatched } : d
+        )
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (uid && context?.previous) {
+        qc.setQueryData(dealsQueryKey(uid), context.previous);
+      }
+      toast.error("Nie udało się zaktualizować flagi");
+    },
+    onSettled: () => {
+      if (uid) qc.invalidateQueries({ queryKey: dealsQueryKey(uid) });
     },
   });
 }

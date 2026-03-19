@@ -69,6 +69,19 @@ const dealConverter: FirestoreDataConverter<DealDTO> = {
       value: d.value ?? 0,
       stage: d.stage ?? "potencjalne",
       notes: d.notes ?? "",
+      dealNotes: ((d.dealNotes as Array<Record<string, unknown>>) ?? []).map((n) => ({
+        text: (n.text as string) ?? "",
+        createdAt:
+          n.createdAt &&
+          typeof n.createdAt === "object" &&
+          "toDate" in n.createdAt &&
+          typeof (n.createdAt as Record<string, unknown>).toDate === "function"
+            ? ((n.createdAt as Record<string, () => Date>).toDate() as unknown as Date).toISOString()
+            : typeof n.createdAt === "string"
+              ? n.createdAt
+              : new Date().toISOString(),
+      })),
+      isWatched: d.isWatched ?? false,
       isRegisteredInCP: d.isRegisteredInCP ?? false,
       history,
       createdAt: d.createdAt?.toDate?.()
@@ -241,6 +254,37 @@ export async function archiveDeal(
     commissionValue: values.commissionValue,
     payoutDate: values.payoutDate,
     notes: values.notes ?? "",
+    updatedAt: serverTimestamp(),
+  });
+}
+
+// ─── Add deal note ──────────────────────────────────────
+
+export async function addDealNote(
+  uid: string,
+  dealId: string,
+  text: string
+): Promise<void> {
+  const db = getDb();
+  const ref = doc(db, "users", uid, "deals", dealId);
+  const now = new Date().toISOString();
+  await updateDoc(ref, {
+    dealNotes: arrayUnion({ text, createdAt: now }),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+// ─── Toggle deal watch flag ─────────────────────────────
+
+export async function toggleDealWatch(
+  uid: string,
+  dealId: string,
+  isWatched: boolean
+): Promise<void> {
+  const db = getDb();
+  const ref = doc(db, "users", uid, "deals", dealId);
+  await updateDoc(ref, {
+    isWatched,
     updatedAt: serverTimestamp(),
   });
 }
