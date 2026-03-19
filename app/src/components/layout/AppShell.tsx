@@ -45,10 +45,12 @@ function MobileTopbar() {
   return (
     <header className="relative flex h-14 items-center justify-between border-b border-white/[0.06] bg-white/[0.04] backdrop-blur-xl px-4 md:hidden">
       <div className="flex items-center gap-2">
-        <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-[10px] font-bold text-primary-foreground">
-          CRM
-        </div>
-        <span className="text-sm font-semibold text-foreground">CRM</span>
+        <img
+          src="/logo.svg"
+          alt="CRM Pro"
+          className="h-7 w-7 rounded-md"
+        />
+        <span className="text-sm font-semibold text-foreground">Panel Eksperta</span>
       </div>
 
       <button

@@ -49,11 +49,13 @@ export function Sidebar() {
     <aside className="hidden md:flex md:w-64 md:flex-col md:border-r md:border-white/[0.06] bg-white/[0.04] backdrop-blur-xl">
       {/* Logo / brand */}
       <div className="flex h-16 items-center gap-2 border-b border-border px-5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
-          CRM
-        </div>
+        <img
+          src="/logo.svg"
+          alt="CRM Pro"
+          className="h-8 w-8 rounded-md"
+        />
         <span className="text-sm font-semibold text-foreground">
-          Doradca kredytowy
+          Panel Eksperta
         </span>
       </div>
 
