@@ -40,11 +40,11 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto py-8">
       {/* Overlay */}
       <div
         ref={overlayRef}
-        className="absolute inset-0 bg-black/60"
+        className="fixed inset-0 bg-black/60"
         onClick={() => onOpenChange(false)}
         aria-hidden
       />
@@ -52,7 +52,7 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
       <div
         role="dialog"
         aria-modal="true"
-        className="relative z-10 w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-lg border border-border bg-card p-6 shadow-lg mx-4"
+        className="relative z-10 w-full max-w-lg shrink-0 rounded-lg border border-border bg-card p-6 shadow-lg mx-4"
       >
         {children}
         <button

@@ -8,6 +8,7 @@ import {
   getDoc,
   addDoc,
   updateDoc,
+  writeBatch,
   serverTimestamp,
   type FirestoreDataConverter,
   type QueryDocumentSnapshot,
@@ -202,7 +203,9 @@ export async function createClient(
   return docRef.id;
 }
 
-/** Update an existing client document. */
+/** Update an existing client document.
+ *  When fullName changes, propagates to denormalized clientName in deals & tasks.
+ */
 export async function updateClient(
   uid: string,
   clientId: string,
@@ -215,5 +218,29 @@ export async function updateClient(
   for (const [k, v] of Object.entries(values)) {
     if (v !== undefined) clean[k] = v;
   }
-  await updateDoc(ref, clean);
+
+  if (clean.fullName) {
+    const batch = writeBatch(db);
+    batch.update(ref, clean);
+
+    // Propagate to deals
+    const dealsSnap = await getDocs(
+      query(collection(db, "users", uid, "deals"), where("clientId", "==", clientId))
+    );
+    for (const d of dealsSnap.docs) {
+      batch.update(d.ref, { clientName: clean.fullName });
+    }
+
+    // Propagate to tasks
+    const tasksSnap = await getDocs(
+      query(collection(db, "users", uid, "tasks"), where("clientId", "==", clientId))
+    );
+    for (const t of tasksSnap.docs) {
+      batch.update(t.ref, { clientName: clean.fullName });
+    }
+
+    await batch.commit();
+  } else {
+    await updateDoc(ref, clean);
+  }
 }
