@@ -56,7 +56,7 @@ export const connectGoogleCalendar = onCall(
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Token exchange failed";
-      console.error("OAuth token exchange failed:", message);
+      logger.error("calendar.oauth.exchangeFailed", { error: message });
       throw new HttpsError(
         "internal",
         "Nie udało się wymienić kodu na tokeny Google."
@@ -91,7 +91,7 @@ export const connectGoogleCalendar = onCall(
       { merge: true }
     );
 
-    console.log(`Google Calendar connected for user ${uid}`);
+    logger.info("calendar.oauth.connected", { uid });
 
     return { success: true };
   }
@@ -140,7 +140,7 @@ async function tryGetValidAccessToken(
         updatedAt: FieldValue.serverTimestamp(),
       });
     } catch (err: unknown) {
-      console.error("Token refresh failed:", err);
+      logger.error("calendar.oauth.refreshFailed", { uid, error: String(err) });
       await integrationRef.update({
         oauthStatus: "reauth_required",
         updatedAt: FieldValue.serverTimestamp(),
@@ -277,20 +277,20 @@ export const syncTaskToGoogleCalendar = onCall(
 
         if (!insertRes.ok) {
           const errBody = await insertRes.text();
-          console.error("Calendar insert failed:", errBody);
+          logger.error("calendar.sync.insertFailed", { uid, error: errBody });
           throw new Error(`Calendar API insert failed: ${insertRes.status}`);
         }
         const body = await insertRes.json();
         htmlLink = body.htmlLink ?? null;
       } else {
         const errBody = await patchRes.text();
-        console.error("Calendar patch failed:", errBody);
+        logger.error("calendar.sync.patchFailed", { uid, error: errBody });
         throw new Error(`Calendar API patch failed: ${patchRes.status}`);
       }
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Calendar API error";
-      console.error("syncTaskToGoogleCalendar failed:", message);
+      logger.error("calendar.sync.taskFailed", { uid, error: message });
 
       // Update task sync state to failed
       await db
@@ -335,7 +335,7 @@ export const syncTaskToGoogleCalendar = onCall(
       updatedAt: FieldValue.serverTimestamp(),
     });
 
-    console.log(`Task ${data.taskId} synced to calendar for user ${uid}`);
+    logger.info("calendar.sync.taskSynced", { uid, taskId: data.taskId });
 
     return { success: true, googleEventId: data.googleEventId, htmlLink };
   }
@@ -375,14 +375,14 @@ export const deleteTaskFromGoogleCalendar = onCall(
     // 204 = success, 404 = already gone, 410 = deleted — all fine
     if (!deleteRes.ok && deleteRes.status !== 404 && deleteRes.status !== 410) {
       const errBody = await deleteRes.text();
-      console.error("Calendar event delete failed:", errBody);
+      logger.error("calendar.sync.deleteFailed", { uid, googleEventId, error: errBody });
       throw new HttpsError(
         "internal",
         "Nie udało się usunąć wydarzenia z kalendarza."
       );
     }
 
-    console.log(`Calendar event ${googleEventId} deleted for user ${uid}`);
+    logger.info("calendar.sync.eventDeleted", { uid, googleEventId });
     return { success: true };
   }
 );
@@ -458,13 +458,13 @@ export const googleCalendarWebhook = onRequest(
 
     // Initial sync confirmation — just acknowledge
     if (resourceState === "sync") {
-      console.log("Watch channel confirmed (sync notification)");
+      logger.info("calendar.webhook.syncConfirmed", { channelId: channelId ?? "unknown" });
       res.status(200).send("OK");
       return;
     }
 
     if (!channelId) {
-      console.error("Webhook: missing x-goog-channel-id");
+      logger.error("calendar.webhook.missingChannelId");
       res.status(200).send("OK");
       return;
     }
@@ -477,7 +477,7 @@ export const googleCalendarWebhook = onRequest(
         .get();
 
       if (!channelSnap.exists) {
-        console.error(`Webhook: no user for channelId ${channelId}`);
+        logger.error("calendar.webhook.unknownChannel", { channelId });
         res.status(200).send("OK");
         return;
       }
@@ -493,7 +493,7 @@ export const googleCalendarWebhook = onRequest(
 
       const integrationSnap = await integrationRef.get();
       if (!integrationSnap.exists) {
-        console.error(`Webhook: no integration doc for user ${uid}`);
+        logger.error("calendar.webhook.noIntegration", { uid });
         res.status(200).send("OK");
         return;
       }
@@ -506,7 +506,7 @@ export const googleCalendarWebhook = onRequest(
         (integrationData.selectedCalendarId as string) || "primary";
 
       if (!syncToken) {
-        console.error(`Webhook: no syncToken for user ${uid}`);
+        logger.error("calendar.webhook.noSyncToken", { uid });
         res.status(200).send("OK");
         return;
       }
@@ -514,7 +514,7 @@ export const googleCalendarWebhook = onRequest(
       // 3. Get valid access token
       const tokenResult = await tryGetValidAccessToken(uid);
       if (!tokenResult) {
-        console.error(`Webhook: cannot get access token for user ${uid}`);
+        logger.error("calendar.webhook.noAccessToken", { uid });
         res.status(200).send("OK");
         return;
       }
@@ -593,7 +593,7 @@ export const googleCalendarWebhook = onRequest(
 
         if (!listRes.ok) {
           const err = await listRes.text();
-          console.error("Webhook: events.list failed:", err);
+          logger.error("calendar.webhook.eventsListFailed", { uid, error: err });
           res.status(200).send("OK");
           return;
         }
@@ -620,14 +620,12 @@ export const googleCalendarWebhook = onRequest(
       );
 
       if (crmEvents.length === 0) {
-        console.log(`Webhook: no CRM events changed for user ${uid}`);
+        logger.info("calendar.webhook.noCrmEvents", { uid });
         res.status(200).send("OK");
         return;
       }
 
-      console.log(
-        `Webhook: processing ${crmEvents.length} CRM events for user ${uid}`
-      );
+      logger.info("calendar.webhook.processing", { uid, count: crmEvents.length });
 
       const tasksRef = db.collection("users").doc(uid).collection("tasks");
 
@@ -639,7 +637,7 @@ export const googleCalendarWebhook = onRequest(
           .get();
 
         if (taskQuery.empty) {
-          console.log(`Webhook: no task found for eventId ${event.id}`);
+          logger.info("calendar.webhook.taskNotFound", { uid, eventId: event.id });
           continue;
         }
 
@@ -648,7 +646,7 @@ export const googleCalendarWebhook = onRequest(
 
         // Event cancelled/deleted in Google Calendar
         if (event.status === "cancelled") {
-          console.log(`Webhook: event ${event.id} cancelled, skipping task update`);
+          logger.info("calendar.webhook.eventCancelled", { uid, eventId: event.id });
           continue;
         }
 
@@ -705,19 +703,15 @@ export const googleCalendarWebhook = onRequest(
 
         if (hasDataChanges) {
           await taskDoc.ref.update(update);
-          console.log(
-            `Webhook: updated task ${taskDoc.id} from Google Calendar`
-          );
+          logger.info("calendar.webhook.taskUpdated", { uid, taskId: taskDoc.id });
         } else {
-          console.log(
-            `Webhook: no data changes for task ${taskDoc.id}, skipping write`
-          );
+          logger.info("calendar.webhook.noChanges", { uid, taskId: taskDoc.id });
         }
       }
 
-      console.log(`Webhook: done processing for user ${uid}`);
+      logger.info("calendar.webhook.done", { uid });
     } catch (err) {
-      console.error("Webhook processing error:", err);
+      logger.error("calendar.webhook.processingError", { error: String(err) });
     }
 
     res.status(200).send("OK");
