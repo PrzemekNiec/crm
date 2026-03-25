@@ -43,7 +43,7 @@ function MobileTopbar() {
       .toUpperCase() ?? "?";
 
   return (
-    <header className="relative flex h-14 items-center justify-between border-b border-white/[0.06] bg-white/[0.04] backdrop-blur-xl px-4 md:hidden">
+    <header className="relative flex h-14 items-center justify-between border-b border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] backdrop-blur-xl px-4 md:hidden">
       <div className="flex items-center gap-2">
         <img
           src="/logo.svg"
@@ -111,7 +111,7 @@ function MobileTopbar() {
 
 function MobileBottomNav() {
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 flex h-16 items-stretch border-t border-white/[0.06] bg-white/[0.04] backdrop-blur-xl md:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-40 flex h-16 items-stretch border-t border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] backdrop-blur-xl md:hidden">
       {NAV_ITEMS.map((item) => (
         <NavLink
           key={item.to}
@@ -149,7 +149,7 @@ export function AppShell() {
         <div className="flex flex-1 flex-col">
           <MobileTopbar />
 
-          <main className="flex-1 overflow-y-auto pb-20 md:pb-0 bg-white/[0.02] backdrop-blur-sm">
+          <main className="flex-1 overflow-y-auto pb-20 md:pb-0 bg-[var(--surface-2)] backdrop-blur-sm">
             <Outlet />
           </main>
         </div>

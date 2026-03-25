@@ -27,6 +27,7 @@ import {
   User,
   X,
 } from "lucide-react";
+import { GLASS } from "@/lib/glass";
 
 type TabFilter = "today" | "overdue" | "all";
 
@@ -139,7 +140,7 @@ export function RescheduleDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange} size="sm">
       <DialogHeader>
         <DialogTitle>Przełóż zadanie</DialogTitle>
         <DialogDescription>{task.title}</DialogDescription>
@@ -249,12 +250,7 @@ function SkeletonCard() {
   return (
     <div
       className="rounded-xl p-4 animate-pulse"
-      style={{
-        background: "rgba(30, 41, 59, 0.5)",
-        backdropFilter: "blur(12px)",
-        WebkitBackdropFilter: "blur(12px)",
-        border: "1px solid rgba(255, 255, 255, 0.1)",
-      }}
+      style={GLASS}
     >
       <div className="flex items-center gap-3">
         <div className="h-8 w-8 rounded bg-muted" />
@@ -308,13 +304,7 @@ export function TaskList({ tasks, isLoading, tab }: TaskListProps) {
     return (
       <div
         className="flex flex-col items-center gap-2 rounded-xl p-12 text-center"
-        style={{
-          background: "rgba(30, 41, 59, 0.5)",
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
-          border: "1px solid rgba(255, 255, 255, 0.1)",
-          boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
-        }}
+        style={GLASS}
       >
         <Calendar className="h-10 w-10 text-muted-foreground" />
         <p className="text-sm text-muted-foreground">{messages[tab]}</p>
@@ -331,15 +321,10 @@ export function TaskList({ tasks, isLoading, tab }: TaskListProps) {
             task.status === "done" ? "opacity-60" : ""
           }`}
           style={{
-            background: task.status === "done"
-              ? "rgba(30, 41, 59, 0.3)"
-              : "rgba(30, 41, 59, 0.5)",
-            backdropFilter: "blur(12px)",
-            WebkitBackdropFilter: "blur(12px)",
+            ...GLASS,
             border: task.dueDate && isOverdue(task.dueDate) && !isToday(task.dueDate) && task.status !== "done"
               ? "1px solid rgba(239, 68, 68, 0.3)"
-              : "1px solid rgba(255, 255, 255, 0.1)",
-            boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
+              : undefined,
           }}
         >
           <div className="flex items-start gap-3">

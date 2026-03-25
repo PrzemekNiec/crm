@@ -5,6 +5,7 @@ import {
   useRef,
   useCallback,
 } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -14,9 +15,15 @@ interface DialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   children: ReactNode;
+  size?: "sm" | "default";
 }
 
-export function Dialog({ open, onOpenChange, children }: DialogProps) {
+const SIZE_CLASS = {
+  sm: "max-w-sm",
+  default: "max-w-lg",
+} as const;
+
+export function Dialog({ open, onOpenChange, children, size = "default" }: DialogProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
 
   const handleKeyDown = useCallback(
@@ -39,7 +46,7 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto py-8">
       {/* Overlay */}
       <div
@@ -52,7 +59,7 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
       <div
         role="dialog"
         aria-modal="true"
-        className="relative z-10 w-full max-w-lg shrink-0 rounded-lg border border-border bg-card p-6 shadow-lg mx-4"
+        className={cn("relative z-10 w-full shrink-0 rounded-lg border border-border bg-card p-6 shadow-lg mx-4", SIZE_CLASS[size])}
       >
         {children}
         <button
@@ -64,7 +71,8 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
           <X className="h-4 w-4" />
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

@@ -4,9 +4,11 @@ import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { useGoogleIntegration } from "../api/integrations";
 import { OAUTH_STATUS_LABELS } from "../types/integration";
-import { Calendar, Link2, Loader2, RefreshCw, Settings } from "lucide-react";
+import { Calendar, Link2, Loader2, Moon, RefreshCw, Settings, Sun } from "lucide-react";
 import { useCalendarAuth } from "@/features/calendar/hooks/useCalendarAuth";
 import { useCalendarWatch } from "@/features/calendar/hooks/useCalendarWatch";
+import { GLASS } from "@/lib/glass";
+import { useTheme } from "@/lib/useTheme";
 
 type Tab = "general" | "integrations";
 
@@ -14,14 +16,6 @@ const TABS: { key: Tab; label: string; icon: typeof Settings }[] = [
   { key: "general", label: "Ogólne", icon: Settings },
   { key: "integrations", label: "Integracje", icon: Link2 },
 ];
-
-const GLASS = {
-  background: "rgba(30, 41, 59, 0.5)",
-  backdropFilter: "blur(12px)",
-  WebkitBackdropFilter: "blur(12px)",
-  border: "1px solid rgba(255, 255, 255, 0.1)",
-  boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
-} as const;
 
 export function SettingsPage() {
   const [tab, setTab] = useState<Tab>("general");
@@ -40,7 +34,7 @@ export function SettingsPage() {
             className={cn(
               "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors cursor-pointer flex-1 justify-center",
               tab === key
-                ? "bg-white/[0.08] text-foreground shadow-sm"
+                ? "bg-[var(--surface-8)] text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
@@ -60,12 +54,30 @@ export function SettingsPage() {
 // ─── General tab ─────────────────────────────────────────────
 
 function GeneralTab() {
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === "dark";
+
   return (
     <div className="rounded-xl p-6" style={GLASS}>
       <h2 className="text-lg font-semibold text-foreground">Ogólne</h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Ustawienia ogólne będą dostępne w kolejnych wersjach aplikacji.
-      </p>
+
+      {/* Theme toggle */}
+      <div className="mt-5 flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-foreground">Motyw</p>
+          <p className="text-xs text-muted-foreground">
+            {isDark ? "Ciemny" : "Jasny"}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={toggleTheme}
+          className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors bg-[var(--surface-6)] hover:bg-[var(--surface-8)] text-foreground cursor-pointer"
+        >
+          {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          {isDark ? "Przełącz na jasny" : "Przełącz na ciemny"}
+        </button>
+      </div>
     </div>
   );
 }
@@ -136,8 +148,8 @@ function IntegrationsTab() {
                 <div
                   className="mt-4 rounded-md px-4 py-3"
                   style={{
-                    background: "rgba(30, 41, 59, 0.6)",
-                    border: "1px solid rgba(255, 255, 255, 0.06)",
+                    background: "var(--glass-bg)",
+                    border: "1px solid var(--surface-6)",
                   }}
                 >
                   {calendarName ? (
@@ -156,8 +168,8 @@ function IntegrationsTab() {
                 <div
                   className="mt-3 rounded-md px-4 py-3"
                   style={{
-                    background: "rgba(30, 41, 59, 0.6)",
-                    border: "1px solid rgba(255, 255, 255, 0.06)",
+                    background: "var(--glass-bg)",
+                    border: "1px solid var(--surface-6)",
                   }}
                 >
                   {watchChannelId ? (

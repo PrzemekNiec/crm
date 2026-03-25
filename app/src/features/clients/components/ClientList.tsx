@@ -10,6 +10,7 @@ import {
 } from "../types/client";
 import type { ClientDTO } from "../api/clients";
 import { Users, Phone, Mail, Handshake } from "lucide-react";
+import { GLASS } from "@/lib/glass";
 
 // ─── Stage badge variant mapping ─────────────────────────────
 
@@ -50,7 +51,7 @@ function priorityBadgeVariant(
 
 function SkeletonRow() {
   return (
-    <div className="flex items-center gap-4 rounded-md p-4 animate-pulse bg-white/[0.04]">
+    <div className="flex items-center gap-4 rounded-md p-4 animate-pulse bg-[var(--surface-4)]">
       <div className="h-10 w-10 rounded-full bg-muted" />
       <div className="flex flex-1 flex-col gap-2">
         <div className="h-4 w-36 rounded bg-muted" />
@@ -98,7 +99,7 @@ export function ClientList({ searchQuery }: ClientListProps) {
   // ─── Error ─────────────────────────────────────────────────
   if (isError) {
     return (
-      <div className="rounded-xl border border-destructive/30 bg-white/[0.04] backdrop-blur-xl p-8 text-center">
+      <div className="rounded-xl border border-destructive/30 bg-[var(--surface-4)] backdrop-blur-xl p-8 text-center">
         <p className="text-sm text-destructive">
           Nie udało się pobrać listy klientów. Spróbuj odświeżyć stronę.
         </p>
@@ -109,7 +110,7 @@ export function ClientList({ searchQuery }: ClientListProps) {
   // ─── Empty ─────────────────────────────────────────────────
   if (!clients || clients.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-12 text-center">
+      <div className="flex flex-col items-center gap-3 rounded-xl border border-[var(--surface-8)] bg-[var(--surface-4)] backdrop-blur-xl p-12 text-center">
         <Users className="h-12 w-12 text-muted-foreground" />
         <p className="text-lg font-medium text-foreground">Brak klientów</p>
         <p className="text-sm text-muted-foreground">
@@ -122,7 +123,7 @@ export function ClientList({ searchQuery }: ClientListProps) {
   // ─── No search results ────────────────────────────────────
   if (filtered.length === 0) {
     return (
-      <div className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-8 text-center">
+      <div className="rounded-xl border border-[var(--surface-8)] bg-[var(--surface-4)] backdrop-blur-xl p-8 text-center">
         <p className="text-sm text-muted-foreground">
           Brak wyników dla &quot;{searchQuery}&quot;
         </p>
@@ -136,17 +137,11 @@ export function ClientList({ searchQuery }: ClientListProps) {
       {/* Desktop: table */}
       <div
         className="hidden overflow-x-auto rounded-xl md:block"
-        style={{
-          background: "rgba(30, 41, 59, 0.5)",
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
-          border: "1px solid rgba(255, 255, 255, 0.1)",
-          boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
-        }}
+        style={GLASS}
       >
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-white/[0.06] text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            <tr className="border-b border-[var(--surface-6)] text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
               <th className="px-4 py-3">Imię i nazwisko</th>
               <th className="px-4 py-3">Kontakt</th>
               <th className="px-4 py-3">Źródło</th>
@@ -154,12 +149,12 @@ export function ClientList({ searchQuery }: ClientListProps) {
               <th className="px-4 py-3">Priorytet</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/[0.06]">
+          <tbody className="divide-y divide-[var(--surface-6)]">
             {filtered.map((client) => (
               <tr
                 key={client.id}
                 onClick={() => navigate(`/clients/${client.id}`)}
-                className="transition-colors hover:bg-white/[0.05] cursor-pointer"
+                className="transition-colors hover:bg-[var(--surface-5)] cursor-pointer"
               >
                 <td className="px-4 py-3 font-medium text-foreground">
                   {client.fullName}
@@ -231,14 +226,8 @@ export function ClientList({ searchQuery }: ClientListProps) {
           <div
             key={client.id}
             onClick={() => navigate(`/clients/${client.id}`)}
-            className="rounded-xl p-4 cursor-pointer transition-colors hover:bg-white/[0.02]"
-            style={{
-              background: "rgba(30, 41, 59, 0.5)",
-              backdropFilter: "blur(12px)",
-              WebkitBackdropFilter: "blur(12px)",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
-              boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
-            }}
+            className="rounded-xl p-4 cursor-pointer transition-colors hover:bg-[var(--surface-2)]"
+            style={GLASS}
           >
             <div className="flex items-start justify-between gap-2">
               <p className="font-medium text-foreground">{client.fullName}</p>

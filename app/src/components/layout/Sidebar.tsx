@@ -8,10 +8,13 @@ import {
   Calendar,
   Settings,
   LogOut,
+  Moon,
+  Sun,
   type LucideIcon,
 } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
 import { cn } from "@/lib/cn";
+import { useTheme } from "@/lib/useTheme";
 
 // ─── Nav config (shared with MobileNav in AppShell) ─────────
 
@@ -36,6 +39,7 @@ export const NAV_ITEMS: NavItem[] = [
 export function Sidebar() {
   const profile = useAuthStore((s) => s.profile);
   const logout = useAuthStore((s) => s.logout);
+  const { theme, toggleTheme } = useTheme();
 
   const initials =
     profile?.displayName
@@ -46,7 +50,7 @@ export function Sidebar() {
       .toUpperCase() ?? "?";
 
   return (
-    <aside className="hidden md:flex md:w-64 md:flex-col md:border-r md:border-white/[0.06] bg-white/[0.04] backdrop-blur-xl">
+    <aside className="hidden md:flex md:w-64 md:flex-col md:border-r md:border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] backdrop-blur-xl">
       {/* Logo / brand */}
       <div className="flex h-16 items-center gap-2 border-b border-border px-5">
         <img
@@ -105,6 +109,14 @@ export function Sidebar() {
             </p>
           </div>
         </div>
+        <button
+          type="button"
+          onClick={toggleTheme}
+          className="mt-1 flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground cursor-pointer"
+        >
+          {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          {theme === "dark" ? "Tryb jasny" : "Tryb ciemny"}
+        </button>
         <button
           type="button"
           onClick={logout}

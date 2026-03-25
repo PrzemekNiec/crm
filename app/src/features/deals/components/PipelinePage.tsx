@@ -50,24 +50,9 @@ import {
   Send,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { GLASS, GLASS_CARD } from "@/lib/glass";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-
-const GLASS = {
-  background: "rgba(30, 41, 59, 0.5)",
-  backdropFilter: "blur(12px)",
-  WebkitBackdropFilter: "blur(12px)",
-  border: "1px solid rgba(255, 255, 255, 0.1)",
-  boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
-} as const;
-
-const GLASS_CARD = {
-  background: "rgba(30, 41, 59, 0.35)",
-  backdropFilter: "blur(12px)",
-  WebkitBackdropFilter: "blur(12px)",
-  border: "1px solid rgba(255, 255, 255, 0.12)",
-  boxShadow: "0 4px 20px 0 rgba(0, 0, 0, 0.2)",
-} as const;
 
 // ─── Helpers ─────────────────────────────────────────────────
 
@@ -671,7 +656,7 @@ function RejectedRow({
   };
 
   return (
-    <tr className="border-t border-white/[0.05] hover:bg-white/[0.03] transition-colors">
+    <tr className="border-t border-[var(--surface-5)] hover:bg-[var(--surface-3)] transition-colors">
       <td className="px-4 py-2.5 text-foreground font-medium">
         {deal.clientId ? (
           <Link to={`/clients/${deal.clientId}`} className="hover:text-blue-400 hover:underline transition-colors">
@@ -790,7 +775,7 @@ function ArchiveRow({
   };
 
   return (
-    <tr className="border-t border-white/[0.05] hover:bg-white/[0.03] transition-colors">
+    <tr className="border-t border-[var(--surface-5)] hover:bg-[var(--surface-3)] transition-colors">
       <td className="px-4 py-2.5 text-foreground font-medium">
         {deal.clientId ? (
           <Link to={`/clients/${deal.clientId}`} className="hover:text-blue-400 hover:underline transition-colors">
@@ -1298,7 +1283,7 @@ function DealHistoryModal({
               Brak historii zmian etapów.
             </p>
           ) : (
-            <div className="relative ml-2 border-l border-white/[0.1] pl-4 space-y-4">
+            <div className="relative ml-2 border-l border-[var(--glass-border)] pl-4 space-y-4">
               {deal.history.map((entry, i) => {
                 const color = DEAL_STAGE_COLORS[entry.stage] ?? "#94a3b8";
                 const isLast = i === deal.history.length - 1;
@@ -1365,8 +1350,8 @@ function DealHistoryModal({
                   key={i}
                   className="rounded-md px-3 py-2 text-sm"
                   style={{
-                    background: "rgba(255, 255, 255, 0.04)",
-                    border: "1px solid rgba(255, 255, 255, 0.08)",
+                    background: "var(--surface-4)",
+                    border: "1px solid var(--surface-8)",
                   }}
                 >
                   <p className="text-foreground/90 whitespace-pre-wrap break-words">

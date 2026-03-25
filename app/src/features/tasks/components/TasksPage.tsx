@@ -5,6 +5,7 @@ import { useTasks } from "../api/useTasks";
 import { TaskList } from "./TaskList";
 import { CreateTaskDialog } from "./CreateTaskDialog";
 import { cn } from "@/lib/cn";
+import { GLASS } from "@/lib/glass";
 
 type Tab = "today" | "overdue" | "all";
 
@@ -49,13 +50,7 @@ export function TasksPage() {
       {/* Tabs */}
       <div
         className="flex gap-1 rounded-xl p-1"
-        style={{
-          background: "rgba(30, 41, 59, 0.5)",
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
-          border: "1px solid rgba(255, 255, 255, 0.1)",
-          boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
-        }}
+        style={GLASS}
       >
         {TABS.map(({ key, label }) => {
           const count =
@@ -69,7 +64,7 @@ export function TasksPage() {
               className={cn(
                 "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors cursor-pointer flex-1 justify-center",
                 tab === key
-                  ? "bg-white/[0.08] text-foreground shadow-sm"
+                  ? "bg-[var(--surface-8)] text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >

@@ -65,15 +65,7 @@ function SkeletonRow() {
   );
 }
 
-// ─── Glassmorphism style ─────────────────────────────────────
-
-const GLASS = {
-  background: "rgba(30, 41, 59, 0.5)",
-  backdropFilter: "blur(12px)",
-  WebkitBackdropFilter: "blur(12px)",
-  border: "1px solid rgba(255, 255, 255, 0.1)",
-  boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
-} as const;
+import { GLASS } from "@/lib/glass";
 
 // ─── Convert Confirmation Dialog ─────────────────────────────
 
@@ -161,7 +153,7 @@ function RejectDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange} size="sm">
       <DialogHeader>
         <DialogTitle>Odrzuć potencjalnego klienta</DialogTitle>
         <DialogDescription>
@@ -183,7 +175,7 @@ function RejectDialog({
               className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
                 reason === r
                   ? "border-primary bg-primary/20 text-primary"
-                  : "border-white/[0.12] bg-white/[0.04] text-muted-foreground hover:bg-white/[0.08] hover:text-foreground"
+                  : "border-[var(--surface-8)] bg-[var(--surface-4)] text-muted-foreground hover:bg-[var(--surface-8)] hover:text-foreground"
               }`}
             >
               {r}
@@ -197,7 +189,7 @@ function RejectDialog({
           onChange={(e) => setReason(e.target.value)}
           placeholder="Lub wpisz własny powód…"
           rows={2}
-          className="w-full resize-none rounded-lg bg-white/[0.06] border border-white/[0.08] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+          className="w-full resize-none rounded-lg bg-[var(--surface-6)] border border-[var(--surface-8)] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
         />
       </div>
       <DialogFooter>
@@ -340,7 +332,7 @@ export function LeadsPage() {
           >
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-white/[0.06] text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                <tr className="border-b border-[var(--surface-6)] text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   <th className="px-4 py-3">Imię i nazwisko</th>
                   <th className="px-4 py-3">Kwota</th>
                   <th className="px-4 py-3">Telefon</th>
@@ -352,7 +344,7 @@ export function LeadsPage() {
                 {leads.map((lead) => (
                   <tr
                     key={lead.id}
-                    className="transition-colors hover:bg-white/[0.05]"
+                    className="transition-colors hover:bg-[var(--surface-5)]"
                   >
                     <td className="px-4 py-3 font-medium text-foreground">
                       {lead.fullName}

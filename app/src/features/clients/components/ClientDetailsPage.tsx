@@ -58,16 +58,9 @@ import {
   type DealFormValues,
 } from "@/features/deals/types/deal";
 import { cn } from "@/lib/cn";
+import { GLASS } from "@/lib/glass";
 
-// ─── Glassmorphism card style ────────────────────────────────
-
-const glassStyle: React.CSSProperties = {
-  background: "rgba(30, 41, 59, 0.5)",
-  backdropFilter: "blur(12px)",
-  WebkitBackdropFilter: "blur(12px)",
-  border: "1px solid rgba(255, 255, 255, 0.1)",
-  boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
-};
+const glassStyle = GLASS;
 
 // ─── Tabs ────────────────────────────────────────────────────
 
@@ -164,7 +157,7 @@ function NotesTab({ clientId }: { clientId: string }) {
           onChange={(e) => setContent(e.target.value)}
           placeholder="Zapisz notatkę z rozmowy, ustalenia, spostrzeżenia…"
           rows={3}
-          className="w-full resize-none rounded-lg bg-white/[0.06] border border-white/[0.08] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+          className="w-full resize-none rounded-lg bg-[var(--surface-6)] border border-[var(--surface-8)] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
         />
         <div className="mt-3 flex justify-end">
           <Button
@@ -290,9 +283,7 @@ function TasksTab({ clientId, clientName }: { clientId: string; clientName: stri
                 className={`rounded-xl p-4 ${isDone ? "opacity-60" : ""}`}
                 style={{
                   ...glassStyle,
-                  background: isDone
-                    ? "rgba(30, 41, 59, 0.3)"
-                    : "rgba(30, 41, 59, 0.5)",
+                  opacity: isDone ? 0.7 : undefined,
                 }}
               >
                 <div className="flex items-start gap-3">
@@ -441,13 +432,11 @@ function DocumentsTab({ clientId }: { clientId: string }) {
           "flex flex-col items-center gap-3 rounded-xl p-8 text-center cursor-pointer transition-all border-2 border-dashed",
           isDragging
             ? "border-primary bg-primary/10"
-            : "border-white/[0.12] hover:border-primary/50 hover:bg-white/[0.02]"
+            : "border-[var(--surface-8)] hover:border-primary/50 hover:bg-[var(--surface-2)]"
         )}
         style={{
-          background: isDragging ? "rgba(201, 149, 107, 0.08)" : "rgba(30, 41, 59, 0.5)",
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
-          boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
+          ...glassStyle,
+          background: isDragging ? "rgba(201, 149, 107, 0.08)" : undefined,
         }}
       >
         <Upload className={cn("h-8 w-8", isDragging ? "text-primary" : "text-muted-foreground")} />
@@ -461,7 +450,7 @@ function DocumentsTab({ clientId }: { clientId: string }) {
         </div>
         {uploadProgress !== null && (
           <div className="w-full max-w-xs">
-            <div className="h-2 rounded-full bg-white/[0.08] overflow-hidden">
+            <div className="h-2 rounded-full bg-[var(--surface-8)] overflow-hidden">
               <div
                 className="h-full rounded-full transition-all"
                 style={{
@@ -518,7 +507,7 @@ function DocumentsTab({ clientId }: { clientId: string }) {
             <div key={doc.id} className="rounded-xl p-4" style={glassStyle}>
               <div className="flex items-center gap-3">
                 {/* Icon */}
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/[0.06]">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--surface-6)]">
                   {fileIcon(doc.type)}
                 </div>
 
@@ -912,7 +901,7 @@ export function ClientDetailsPage() {
             className={cn(
               "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors cursor-pointer flex-1 justify-center",
               tab === key
-                ? "bg-white/[0.08] text-foreground shadow-sm"
+                ? "bg-[var(--surface-8)] text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >

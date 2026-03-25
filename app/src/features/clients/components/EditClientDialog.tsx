@@ -263,7 +263,7 @@ export function EditClientDialog({
             id="edit-mainNote"
             {...register("mainNote")}
             rows={3}
-            className="w-full resize-none rounded-lg bg-white/[0.06] border border-white/[0.08] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className="w-full resize-none rounded-lg bg-[var(--surface-6)] border border-[var(--surface-8)] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
             placeholder="Dodatkowe informacje o kliencie…"
           />
         </div>

@@ -199,7 +199,7 @@ function FinancialWidgets({
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div
-          className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-5 cursor-pointer transition-all hover:ring-1 hover:ring-primary/30"
+          className="rounded-xl border border-[var(--surface-8)] bg-[var(--surface-4)] backdrop-blur-xl p-5 cursor-pointer transition-all hover:ring-1 hover:ring-primary/30"
           onClick={() => navigate("/pipeline")}
         >
           <div className="flex items-center gap-3">
@@ -216,7 +216,7 @@ function FinancialWidgets({
         </div>
 
         <div
-          className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-5 cursor-pointer transition-all hover:ring-1 hover:ring-emerald-500/30"
+          className="rounded-xl border border-[var(--surface-8)] bg-[var(--surface-4)] backdrop-blur-xl p-5 cursor-pointer transition-all hover:ring-1 hover:ring-emerald-500/30"
           onClick={() => navigate("/pipeline")}
         >
           <div className="flex items-center gap-3">
@@ -233,7 +233,7 @@ function FinancialWidgets({
         </div>
 
         <div
-          className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-5 cursor-pointer transition-all hover:ring-1 hover:ring-blue-500/30"
+          className="rounded-xl border border-[var(--surface-8)] bg-[var(--surface-4)] backdrop-blur-xl p-5 cursor-pointer transition-all hover:ring-1 hover:ring-blue-500/30"
           onClick={() => navigate("/pipeline")}
         >
           <div className="flex items-center gap-3">
@@ -265,7 +265,7 @@ function StatsCards({ todayCount, overdueCount, newLeadsCount }: StatsProps) {
   return (
     <div className="grid gap-4 sm:grid-cols-3">
       <div
-        className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-5 cursor-pointer transition-all hover:ring-1 hover:ring-primary/30"
+        className="rounded-xl border border-[var(--surface-8)] bg-[var(--surface-4)] backdrop-blur-xl p-5 cursor-pointer transition-all hover:ring-1 hover:ring-primary/30"
         onClick={() => navigate("/tasks")}
       >
         <div className="flex items-center gap-3">
@@ -280,7 +280,7 @@ function StatsCards({ todayCount, overdueCount, newLeadsCount }: StatsProps) {
       </div>
 
       <div
-        className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-5 cursor-pointer transition-all hover:ring-1 hover:ring-red-500/30"
+        className="rounded-xl border border-[var(--surface-8)] bg-[var(--surface-4)] backdrop-blur-xl p-5 cursor-pointer transition-all hover:ring-1 hover:ring-red-500/30"
         onClick={() => navigate("/tasks")}
       >
         <div className="flex items-center gap-3">
@@ -295,7 +295,7 @@ function StatsCards({ todayCount, overdueCount, newLeadsCount }: StatsProps) {
       </div>
 
       <div
-        className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-5 cursor-pointer transition-all hover:ring-1 hover:ring-amber-500/30"
+        className="rounded-xl border border-[var(--surface-8)] bg-[var(--surface-4)] backdrop-blur-xl p-5 cursor-pointer transition-all hover:ring-1 hover:ring-amber-500/30"
         onClick={() => navigate("/leads")}
       >
         <div className="flex items-center gap-3">
@@ -362,7 +362,7 @@ function RescheduleDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange} size="sm">
       <DialogHeader>
         <DialogTitle>Przełóż zadanie</DialogTitle>
         <DialogDescription>{task.title}</DialogDescription>
@@ -447,7 +447,7 @@ function TodayTimeline({ tasks }: { tasks: TaskDTO[] }) {
       {tasks.map((task) => (
         <div
           key={task.id}
-          className="group flex items-start gap-3 rounded-lg border border-white/[0.06] bg-white/[0.03] p-3 transition-colors hover:bg-white/[0.06]"
+          className="group flex items-start gap-3 rounded-lg border border-[var(--surface-6)] bg-[var(--surface-3)] p-3 transition-colors hover:bg-[var(--surface-6)]"
         >
           {/* Time column */}
           <div className="flex w-14 shrink-0 flex-col items-center">
@@ -459,7 +459,7 @@ function TodayTimeline({ tasks }: { tasks: TaskDTO[] }) {
           {/* Vertical line */}
           <div className="flex flex-col items-center pt-1">
             <div className="h-2 w-2 rounded-full bg-primary" />
-            <div className="mt-1 h-full w-px bg-white/[0.08]" />
+            <div className="mt-1 h-full w-px bg-[var(--surface-8)]" />
           </div>
 
           {/* Content */}
@@ -496,7 +496,7 @@ function TodayTimeline({ tasks }: { tasks: TaskDTO[] }) {
                 <Clock className="h-3 w-3" />
                 {task.durationMin} minut
               </span>
-              <span className="rounded-md bg-white/[0.06] px-1.5 py-0.5">
+              <span className="rounded-md bg-[var(--surface-6)] px-1.5 py-0.5">
                 {TASK_TYPE_LABELS[task.type] ?? task.type}
               </span>
             </div>
@@ -573,7 +573,7 @@ function NewLeadsSection({ leads }: { leads: LeadDTO[] }) {
       {leads.map((lead) => (
         <div
           key={lead.id}
-          className="group flex items-center gap-3 rounded-lg border border-white/[0.06] bg-white/[0.03] p-3 transition-colors hover:bg-white/[0.06] cursor-pointer"
+          className="group flex items-center gap-3 rounded-lg border border-[var(--surface-6)] bg-[var(--surface-3)] p-3 transition-colors hover:bg-[var(--surface-6)] cursor-pointer"
           onClick={() => navigate("/leads")}
         >
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-500/20">
@@ -672,7 +672,7 @@ export function DashboardPage() {
       <OverdueTasks tasks={overdueTasks} />
 
       {/* Today timeline */}
-      <section className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-5">
+      <section className="rounded-xl border border-[var(--surface-8)] bg-[var(--surface-4)] backdrop-blur-xl p-5">
         <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-foreground">
           <Calendar className="h-4 w-4 text-primary" />
           Dziś do kontaktu
@@ -687,7 +687,7 @@ export function DashboardPage() {
       </section>
 
       {/* New Leads */}
-      <section className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-5">
+      <section className="rounded-xl border border-[var(--surface-8)] bg-[var(--surface-4)] backdrop-blur-xl p-5">
         <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-foreground">
           <Zap className="h-4 w-4 text-amber-400" />
           Nowe leady — czekają na pierwszy kontakt
@@ -797,7 +797,7 @@ function RecentActivity({
   }
 
   return (
-    <section className="rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-5">
+    <section className="rounded-xl border border-[var(--surface-8)] bg-[var(--surface-4)] backdrop-blur-xl p-5">
       <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-foreground">
         <Activity className="h-4 w-4 text-violet-400" />
         Ostatnia aktywność
@@ -806,7 +806,7 @@ function RecentActivity({
         {items.map((item) => (
           <div
             key={item.id}
-            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm hover:bg-white/[0.04] transition-colors"
+            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm hover:bg-[var(--surface-4)] transition-colors"
           >
             <span className="text-base shrink-0 w-6 text-center">{item.icon}</span>
             <div className="flex-1 min-w-0">
