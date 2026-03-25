@@ -25,12 +25,12 @@ const DAY_NAMES = ["Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "
 const DAY_NAMES_SHORT = ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Ndz"];
 
 const TYPE_COLORS: Record<string, { bg: string; border: string; text: string }> = {
-  call:     { bg: "bg-blue-500/20",    border: "border-blue-500/40",    text: "text-blue-300" },
-  meeting:  { bg: "bg-emerald-500/20", border: "border-emerald-500/40", text: "text-emerald-300" },
-  followup: { bg: "bg-amber-500/20",   border: "border-amber-500/40",   text: "text-amber-300" },
-  docs:     { bg: "bg-purple-500/20",  border: "border-purple-500/40",  text: "text-purple-300" },
-  check:    { bg: "bg-pink-500/20",    border: "border-pink-500/40",    text: "text-pink-300" },
-  custom:   { bg: "bg-gray-500/20",    border: "border-gray-500/40",    text: "text-gray-300" },
+  call:     { bg: "bg-blue-500/20",    border: "border-blue-500/40",    text: "text-blue-700 dark:text-blue-300" },
+  meeting:  { bg: "bg-emerald-500/20", border: "border-emerald-500/40", text: "text-emerald-700 dark:text-emerald-300" },
+  followup: { bg: "bg-amber-500/20",   border: "border-amber-500/40",   text: "text-amber-700 dark:text-amber-300" },
+  docs:     { bg: "bg-purple-500/20",  border: "border-purple-500/40",  text: "text-purple-700 dark:text-purple-300" },
+  check:    { bg: "bg-pink-500/20",    border: "border-pink-500/40",    text: "text-pink-700 dark:text-pink-300" },
+  custom:   { bg: "bg-gray-500/20",    border: "border-gray-500/40",    text: "text-gray-700 dark:text-gray-300" },
 };
 
 // ─── Helpers ────────────────────────────────────────────────
@@ -492,14 +492,14 @@ export function CalendarView() {
       {/* Day headers (desktop only) */}
       <div className="hidden md:grid shrink-0" style={{ gridTemplateColumns: "56px repeat(7, 1fr)" }}>
         {/* Gutter */}
-        <div className="border-b border-r border-border" />
+        <div className="border-b border-r border-[var(--grid-line)]" />
         {weekDays.map((d, i) => {
           const isToday = isSameDay(d, today);
           return (
             <div
               key={i}
               className={cn(
-                "border-b border-r border-border px-2 py-2 text-center",
+                "border-b border-r border-[var(--grid-line)] px-2 py-2 text-center",
                 isToday && "bg-primary/10"
               )}
             >
@@ -527,7 +527,7 @@ export function CalendarView() {
           {HOURS.map((hour) => (
             <div
               key={hour}
-              className="border-b border-r border-border text-[11px] text-muted-foreground pr-2 pt-1 text-right col-start-1"
+              className="border-b border-r border-[var(--grid-line)] text-[11px] text-muted-foreground pr-2 pt-1 text-right col-start-1"
               style={{ gridRow: hour - HOUR_START + 1, height: ROW_HEIGHT }}
             >
               {String(hour).padStart(2, "0")}:00
@@ -544,7 +544,7 @@ export function CalendarView() {
               <div
                 key={dayIdx}
                 className={cn(
-                  "relative border-r border-border transition-colors",
+                  "relative border-r border-[var(--grid-line)] transition-colors",
                   isToday && "bg-primary/[0.03]",
                   isDragOver && "bg-blue-500/[0.08]"
                 )}
@@ -573,14 +573,14 @@ export function CalendarView() {
                   <div key={hour}>
                     {/* Full hour line */}
                     <div
-                      className="absolute w-full border-b border-border/50"
+                      className="absolute w-full border-b border-[var(--grid-line)]"
                       style={{ top: (hour - HOUR_START) * ROW_HEIGHT + ROW_HEIGHT - 1, height: 1 }}
                     />
                     {/* 15-min sub-lines */}
                     {[1, 2, 3].map((q) => (
                       <div
                         key={q}
-                        className="absolute w-full border-b border-border/20"
+                        className="absolute w-full border-b border-[var(--grid-subline)]"
                         style={{ top: (hour - HOUR_START) * ROW_HEIGHT + (q * ROW_HEIGHT) / 4 - 1, height: 1 }}
                       />
                     ))}

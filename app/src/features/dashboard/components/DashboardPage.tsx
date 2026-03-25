@@ -225,7 +225,7 @@ function FinancialWidgets({
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Zamknięte sukcesem</p>
-              <p className="text-xl font-bold text-emerald-400">
+              <p className="text-xl font-bold text-emerald-700 dark:text-emerald-400">
                 {formatCurrency(stats.closedValue)}
               </p>
             </div>
