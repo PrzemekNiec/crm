@@ -18,6 +18,7 @@ export const calendarSettingsSchema = z.object({
   selectedCalendarId: z.string().nullable(),
   selectedCalendarName: z.string().nullable(),
   watchChannelId: z.string().nullable().optional(),
+  watchExpiration: z.number().nullable().optional(),
 });
 
 export type CalendarSettings = z.infer<typeof calendarSettingsSchema>;

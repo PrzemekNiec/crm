@@ -1,5 +1,6 @@
 import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentUpdated } from "firebase-functions/v2/firestore";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import { defineString } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
@@ -399,96 +400,41 @@ export const registerCalendarWatch = onCall(
     const uid = request.auth.uid;
     const { accessToken, calendarId } = await getValidAccessToken(uid);
 
-    // 1. Get initial syncToken by listing all events (paginate to end)
-    let syncToken: string | null = null;
-    let pageToken: string | undefined;
-
-    do {
-      const params = new URLSearchParams({
-        maxResults: "250",
-        showDeleted: "true",
-      });
-      if (pageToken) params.set("pageToken", pageToken);
-
-      const listRes = await fetch(
-        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params}`,
-        { headers: { Authorization: `Bearer ${accessToken}` } }
-      );
-
-      if (!listRes.ok) {
-        const err = await listRes.text();
-        console.error("events.list failed:", err);
-        throw new HttpsError("internal", "Nie udało się uzyskać syncToken.");
-      }
-
-      const data = await listRes.json();
-      syncToken = data.nextSyncToken ?? null;
-      pageToken = data.nextPageToken;
-    } while (pageToken);
-
-    if (!syncToken) {
-      throw new HttpsError("internal", "Nie udało się uzyskać syncToken.");
-    }
-
-    // 2. Register watch channel
-    const channelId = crypto.randomUUID();
-    const address = webhookUrl.value();
-
-    const watchRes = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/watch`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          id: channelId,
-          type: "web_hook",
-          address,
-        }),
-      }
-    );
-
-    if (!watchRes.ok) {
-      const err = await watchRes.text();
-      console.error("events.watch failed:", err);
-      throw new HttpsError(
-        "internal",
-        "Nie udało się zarejestrować webhooka kalendarza."
-      );
-    }
-
-    const watchData = await watchRes.json();
-
-    // 3. Save watch metadata + syncToken
+    // 0. Stop existing watch channel (if any) to avoid duplicates
     const integrationRef = db
       .collection("users")
       .doc(uid)
       .collection("integrations")
       .doc("google_workspace");
 
-    await integrationRef.update({
-      "calendar.watchChannelId": channelId,
-      "calendar.watchResourceId": watchData.resourceId ?? null,
-      "calendar.syncToken": syncToken,
-      "calendar.watchExpiration": watchData.expiration
-        ? Number(watchData.expiration)
-        : null,
-      updatedAt: FieldValue.serverTimestamp(),
-    });
+    const existingSnap = await integrationRef.get();
+    const existingData = existingSnap.data();
+    const oldChannelId = existingData?.calendar?.watchChannelId as string | undefined;
+    const oldResourceId = existingData?.calendar?.watchResourceId as string | undefined;
 
-    // 4. Create channelId → uid mapping for webhook lookup
-    await db.collection("calendarWatchChannels").doc(channelId).set({
-      uid,
-      createdAt: FieldValue.serverTimestamp(),
-    });
+    if (oldChannelId && oldResourceId) {
+      const stopped = await stopWatchChannel(accessToken, oldChannelId, oldResourceId);
+      if (stopped) {
+        logger.info("calendar.watch.stopped", { uid, channelId: oldChannelId });
+      }
+      await db.collection("calendarWatchChannels").doc(oldChannelId).delete().catch(() => {});
+    }
 
-    console.log(
-      `Calendar watch registered for user ${uid}, channelId: ${channelId}`
-    );
-
-    return { success: true, channelId };
+    // 1–4. Register new channel (syncToken + watch + Firestore)
+    try {
+      const { channelId } = await registerNewWatchChannel(uid, accessToken, calendarId);
+      logger.info("calendar.watch.registered", { uid, channelId });
+      return { success: true, channelId };
+    } catch (err) {
+      logger.error("calendar.watch.registerFailed", {
+        uid,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      throw new HttpsError(
+        "internal",
+        "Nie udało się zarejestrować webhooka kalendarza."
+      );
+    }
   }
 );
 
@@ -599,16 +545,50 @@ export const googleCalendarWebhook = onRequest(
         );
 
         if (listRes.status === 410) {
-          // syncToken expired — need full re-sync
-          console.warn(
-            `Webhook: syncToken expired for user ${uid}, clearing`
-          );
-          await integrationRef.update({
-            "calendar.syncToken": null,
-            updatedAt: FieldValue.serverTimestamp(),
-          });
-          res.status(200).send("OK");
-          return;
+          // syncToken expired — perform full re-sync to recover
+          logger.warn("calendar.sync.tokenExpired", { uid });
+
+          // Re-fetch all events to get new syncToken
+          let recoveryPageToken: string | undefined;
+          let recoverySyncToken: string | null = null;
+
+          do {
+            const rp = new URLSearchParams({ maxResults: "250", showDeleted: "true" });
+            if (recoveryPageToken) rp.set("pageToken", recoveryPageToken);
+
+            const recoveryRes = await fetch(
+              `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${rp}`,
+              { headers: { Authorization: `Bearer ${tokenResult.accessToken}` } }
+            );
+
+            if (!recoveryRes.ok) {
+              logger.error("calendar.sync.fullResyncFailed", { uid, status: recoveryRes.status });
+              await integrationRef.update({
+                "calendar.syncToken": null,
+                updatedAt: FieldValue.serverTimestamp(),
+              });
+              res.status(200).send("OK");
+              return;
+            }
+
+            const recoveryData = await recoveryRes.json();
+            if (recoveryData.items) {
+              changedEvents.push(...recoveryData.items);
+            }
+            recoverySyncToken = recoveryData.nextSyncToken ?? null;
+            recoveryPageToken = recoveryData.nextPageToken;
+          } while (recoveryPageToken);
+
+          if (recoverySyncToken) {
+            await integrationRef.update({
+              "calendar.syncToken": recoverySyncToken,
+              updatedAt: FieldValue.serverTimestamp(),
+            });
+          }
+
+          logger.info("calendar.sync.fullResyncComplete", { uid, eventsCount: changedEvents.length });
+          // Fall through to process changed events below
+          break;
         }
 
         if (!listRes.ok) {
@@ -917,5 +897,204 @@ export const onDealRejected = onDocumentUpdated(
       dealId,
       eventsProcessed: tasksSnap.size,
     });
+  }
+);
+
+// ─── Helper: stop a Google Calendar watch channel ───────────
+
+async function stopWatchChannel(
+  accessToken: string,
+  channelId: string,
+  resourceId: string
+): Promise<boolean> {
+  try {
+    const res = await fetch(
+      "https://www.googleapis.com/calendar/v3/channels/stop",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id: channelId, resourceId }),
+      }
+    );
+    return res.ok || res.status === 404;
+  } catch {
+    return false;
+  }
+}
+
+// ─── Helper: register a new watch channel + get syncToken ───
+
+async function registerNewWatchChannel(
+  uid: string,
+  accessToken: string,
+  calendarId: string
+): Promise<{ channelId: string; expiration: number | null }> {
+  // 1. Get initial syncToken
+  let syncToken: string | null = null;
+  let pageToken: string | undefined;
+
+  do {
+    const params = new URLSearchParams({ maxResults: "250", showDeleted: "true" });
+    if (pageToken) params.set("pageToken", pageToken);
+
+    const listRes = await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+
+    if (!listRes.ok) {
+      throw new Error(`events.list failed: ${listRes.status}`);
+    }
+
+    const data = await listRes.json();
+    syncToken = data.nextSyncToken ?? null;
+    pageToken = data.nextPageToken;
+  } while (pageToken);
+
+  if (!syncToken) {
+    throw new Error("Failed to obtain syncToken");
+  }
+
+  // 2. Register watch channel
+  const channelId = crypto.randomUUID();
+  const address = webhookUrl.value();
+
+  const watchRes = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/watch`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ id: channelId, type: "web_hook", address }),
+    }
+  );
+
+  if (!watchRes.ok) {
+    throw new Error(`events.watch failed: ${watchRes.status}`);
+  }
+
+  const watchData = await watchRes.json();
+  const expiration = watchData.expiration ? Number(watchData.expiration) : null;
+
+  // 3. Save to Firestore
+  const integrationRef = db
+    .collection("users")
+    .doc(uid)
+    .collection("integrations")
+    .doc("google_workspace");
+
+  await integrationRef.update({
+    "calendar.watchChannelId": channelId,
+    "calendar.watchResourceId": watchData.resourceId ?? null,
+    "calendar.syncToken": syncToken,
+    "calendar.watchExpiration": expiration,
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+
+  await db.collection("calendarWatchChannels").doc(channelId).set({
+    uid,
+    createdAt: FieldValue.serverTimestamp(),
+  });
+
+  return { channelId, expiration };
+}
+
+// ─── renewCalendarWatches ───────────────────────────────────
+// Scheduled function that runs every 6 hours. Finds watch
+// channels expiring within 24h and renews them automatically.
+
+export const renewCalendarWatches = onSchedule(
+  {
+    schedule: "every 6 hours",
+    region: "europe-west1",
+    timeoutSeconds: 120,
+  },
+  async () => {
+    const now = Date.now();
+    const renewThreshold = now + 24 * 60 * 60 * 1000; // 24h from now
+
+    // Find all users with active Google integration
+    const usersSnap = await db.collectionGroup("integrations")
+      .where("oauthStatus", "==", "active")
+      .get();
+
+    let renewed = 0;
+    let skipped = 0;
+    let failed = 0;
+
+    for (const doc of usersSnap.docs) {
+      if (doc.id !== "google_workspace") continue;
+
+      const data = doc.data();
+      const uid = doc.ref.parent.parent?.id;
+      if (!uid) continue;
+
+      const watchChannelId = data.calendar?.watchChannelId as string | undefined;
+      const watchResourceId = data.calendar?.watchResourceId as string | undefined;
+      const watchExpiration = data.calendar?.watchExpiration as number | undefined;
+
+      // Skip if no watch channel registered
+      if (!watchChannelId) {
+        skipped++;
+        continue;
+      }
+
+      // Skip if channel is still fresh (expires after threshold)
+      if (watchExpiration && watchExpiration > renewThreshold) {
+        skipped++;
+        continue;
+      }
+
+      logger.info("calendar.watch.renewing", {
+        uid,
+        oldChannelId: watchChannelId,
+        expiresAt: watchExpiration ? new Date(watchExpiration).toISOString() : "unknown",
+      });
+
+      // Get valid access token
+      const tokenResult = await tryGetValidAccessToken(uid);
+      if (!tokenResult) {
+        logger.warn("calendar.watch.renewSkipped", { uid, reason: "no valid token" });
+        failed++;
+        continue;
+      }
+
+      // Stop old channel
+      if (watchResourceId) {
+        const stopped = await stopWatchChannel(tokenResult.accessToken, watchChannelId, watchResourceId);
+        if (stopped) {
+          await db.collection("calendarWatchChannels").doc(watchChannelId).delete().catch(() => {});
+          logger.info("calendar.watch.stopped", { uid, channelId: watchChannelId });
+        }
+      }
+
+      // Register new channel
+      try {
+        const { channelId, expiration } = await registerNewWatchChannel(
+          uid,
+          tokenResult.accessToken,
+          tokenResult.calendarId
+        );
+        logger.info("calendar.watch.renewed", {
+          uid,
+          newChannelId: channelId,
+          expiresAt: expiration ? new Date(expiration).toISOString() : "unknown",
+        });
+        renewed++;
+      } catch (err) {
+        logger.error("calendar.watch.renewFailed", {
+          uid,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        failed++;
+      }
+    }
+
+    logger.info("calendar.watch.renewSummary", { renewed, skipped, failed });
   }
 );

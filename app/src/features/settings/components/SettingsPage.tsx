@@ -107,6 +107,11 @@ function IntegrationsTab() {
   const oauthStatus = integration?.oauthStatus ?? "disconnected";
   const calendarName = integration?.calendar.selectedCalendarName;
   const watchChannelId = integration?.calendar.watchChannelId ?? null;
+  const watchExpiration = integration?.calendar.watchExpiration ?? null;
+
+  const now = Date.now();
+  const watchExpired = watchExpiration != null && watchExpiration < now;
+  const watchExpiringSoon = watchExpiration != null && !watchExpired && watchExpiration < now + 24 * 60 * 60 * 1000;
 
   return (
     <div className="flex flex-col gap-4">
@@ -173,12 +178,41 @@ function IntegrationsTab() {
                   }}
                 >
                   {watchChannelId ? (
-                    <div className="flex items-center gap-2">
-                      <RefreshCw className="h-4 w-4 text-emerald-500" />
-                      <p className="text-sm text-foreground">
-                        Synchronizacja dwukierunkowa jest{" "}
-                        <span className="font-medium text-emerald-400">aktywna</span>
-                      </p>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2">
+                        <RefreshCw className={cn("h-4 w-4", watchExpired ? "text-red-500" : watchExpiringSoon ? "text-amber-500" : "text-emerald-500")} />
+                        <p className="text-sm text-foreground">
+                          Synchronizacja dwukierunkowa jest{" "}
+                          {watchExpired ? (
+                            <span className="font-medium text-red-500">wygasła</span>
+                          ) : watchExpiringSoon ? (
+                            <span className="font-medium text-amber-500">wygasa wkrótce</span>
+                          ) : (
+                            <span className="font-medium text-emerald-700 dark:text-emerald-400">aktywna</span>
+                          )}
+                        </p>
+                      </div>
+                      {watchExpiration && (
+                        <p className="text-xs text-muted-foreground">
+                          {watchExpired ? "Wygasła" : "Ważna do"}: {new Date(watchExpiration).toLocaleString("pl-PL")}
+                        </p>
+                      )}
+                      {(watchExpired || watchExpiringSoon) && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={isRegistering}
+                          onClick={registerWatch}
+                          className="self-start"
+                        >
+                          {isRegistering ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-4 w-4" />
+                          )}
+                          {isRegistering ? "Odnawianie…" : "Odnów kanał"}
+                        </Button>
+                      )}
                     </div>
                   ) : (
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
