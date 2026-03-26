@@ -188,10 +188,10 @@ export function AppShell() {
         <Sidebar />
 
         {/* Main content area */}
-        <div className="flex flex-1 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col">
           <MobileTopbar />
 
-          <main className="flex-1 overflow-y-auto pb-20 md:pb-0 bg-[var(--surface-2)] backdrop-blur-sm">
+          <main className="flex-1 overflow-x-hidden overflow-y-auto pb-20 md:pb-0 bg-[var(--surface-2)] backdrop-blur-sm">
             <Outlet />
           </main>
         </div>

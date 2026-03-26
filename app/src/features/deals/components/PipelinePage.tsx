@@ -555,9 +555,9 @@ function ArchiveTable({
   clientInfoMap: Map<string, ClientInfo>;
 }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
+    <div className="overflow-x-auto w-full">
+      <table className="w-full text-sm whitespace-nowrap">
+        <thead className="sticky top-0 z-10 bg-[var(--surface-4)]">
           <tr className="text-left text-[11px] text-muted-foreground uppercase tracking-wider">
             <th className="px-4 py-2 font-medium">Klient</th>
             <th className="px-4 py-2 font-medium">Bank</th>
@@ -592,9 +592,9 @@ function RejectedTable({
   clientInfoMap: Map<string, ClientInfo>;
 }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
+    <div className="overflow-x-auto w-full">
+      <table className="w-full text-sm whitespace-nowrap">
+        <thead className="sticky top-0 z-10 bg-[var(--surface-4)]">
           <tr className="text-left text-[11px] text-muted-foreground uppercase tracking-wider">
             <th className="px-4 py-2 font-medium">Klient</th>
             <th className="px-4 py-2 font-medium">Tytuł</th>
