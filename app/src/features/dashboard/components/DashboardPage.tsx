@@ -18,7 +18,6 @@ import type { DealDTO } from "@/features/deals/types/deal";
 import { DEAL_STAGE_LABELS } from "@/features/deals/types/deal";
 import {
   AlertTriangle,
-  Briefcase,
   Calendar,
   Check,
   Clock,
@@ -447,63 +446,46 @@ function TodayTimeline({ tasks }: { tasks: TaskDTO[] }) {
       {tasks.map((task) => (
         <div
           key={task.id}
-          className="group flex items-start gap-3 rounded-lg border border-[var(--surface-6)] bg-[var(--surface-3)] p-3 transition-colors hover:bg-[var(--surface-6)]"
+          className="group flex flex-col gap-2 rounded-lg border border-[var(--surface-6)] bg-[var(--surface-3)] p-3 transition-colors hover:bg-[var(--surface-6)]"
         >
-          {/* Time column */}
-          <div className="flex w-14 shrink-0 flex-col items-center">
-            <span className="text-xs font-semibold text-primary">
+          {/* Row 1: Time + Client */}
+          <div className="flex items-center gap-2">
+            <span className="shrink-0 text-xs font-semibold text-primary">
               {formatTime(task.dueDate) || "—"}
+            </span>
+            <div className="h-2 w-2 shrink-0 rounded-full bg-primary" />
+            <span className="min-w-0 truncate text-sm font-medium text-foreground">
+              {task.clientName ? (
+                task.clientId ? (
+                  <a href={`/clients/${task.clientId}`} className="hover:text-blue-400 hover:underline transition-colors">
+                    {task.clientName}
+                  </a>
+                ) : (
+                  task.clientName
+                )
+              ) : (
+                <span className="italic text-muted-foreground">Zadanie ogólne</span>
+              )}
             </span>
           </div>
 
-          {/* Vertical line */}
-          <div className="flex flex-col items-center pt-1">
-            <div className="h-2 w-2 rounded-full bg-primary" />
-            <div className="mt-1 h-full w-px bg-[var(--surface-8)]" />
-          </div>
-
-          {/* Content */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-base">
+          {/* Row 2: Task type + Actions */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+              <span className="text-base shrink-0">
                 {TASK_TYPE_EMOJI[task.type] ?? "📌"}
               </span>
-              <h4 className="truncate text-sm font-medium text-foreground">
-                {task.title}
-              </h4>
-            </div>
-            <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
-                {task.clientName ? (
-                  <>
-                    <User className="h-3 w-3" />
-                    {task.clientId ? (
-                      <a href={`/clients/${task.clientId}`} className="hover:text-blue-400 hover:underline transition-colors">
-                        {task.clientName}
-                      </a>
-                    ) : (
-                      task.clientName
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <Briefcase className="h-3 w-3" />
-                    <span className="italic">Zadanie ogólne</span>
-                  </>
-                )}
+              <span className="truncate">{task.title}</span>
+              <span className="shrink-0 rounded-md bg-[var(--surface-6)] px-1.5 py-0.5">
+                {TASK_TYPE_LABELS[task.type] ?? task.type}
               </span>
-              <span className="flex items-center gap-1">
+              <span className="hidden sm:flex shrink-0 items-center gap-1">
                 <Clock className="h-3 w-3" />
                 {task.durationMin} minut
               </span>
-              <span className="rounded-md bg-[var(--surface-6)] px-1.5 py-0.5">
-                {TASK_TYPE_LABELS[task.type] ?? task.type}
-              </span>
             </div>
+            <TaskActionButtons task={task} />
           </div>
-
-          {/* Action buttons */}
-          <TaskActionButtons task={task} />
         </div>
       ))}
     </div>
