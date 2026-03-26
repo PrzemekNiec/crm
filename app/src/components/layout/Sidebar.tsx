@@ -29,9 +29,18 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/clients", label: "Klienci", icon: Users },
   { to: "/tasks", label: "Zadania", icon: CheckSquare },
   { to: "/leads", label: "Potencjalni", icon: Zap },
-  { to: "/pipeline", label: "Lejek sprzedaży", icon: Kanban },
+  { to: "/pipeline", label: "Lejek", icon: Kanban },
   { to: "/calendar", label: "Kalendarz", icon: Calendar },
   { to: "/settings", label: "Ustawienia", icon: Settings },
+];
+
+/** Subset shown in mobile bottom navigation (max 5 for small screens) */
+export const MOBILE_NAV_ITEMS: NavItem[] = [
+  { to: "/", label: "Start", icon: LayoutDashboard },
+  { to: "/clients", label: "Klienci", icon: Users },
+  { to: "/tasks", label: "Zadania", icon: CheckSquare },
+  { to: "/pipeline", label: "Lejek", icon: Kanban },
+  { to: "/calendar", label: "Kalendarz", icon: Calendar },
 ];
 
 // ─── Sidebar (desktop only) ─────────────────────────────────
