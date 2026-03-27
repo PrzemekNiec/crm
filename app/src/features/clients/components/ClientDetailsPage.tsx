@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { Dialog, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/Dialog";
+import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/Dialog";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { useForm } from "react-hook-form";
@@ -101,6 +101,104 @@ function formatTime(iso: string): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+// ─── Log Interaction Dialog (Phase 5.2: Magic Links) ────────
+
+interface LogInteractionDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  type: "phone" | "email";
+  clientId: string;
+  clientName: string;
+}
+
+function LogInteractionDialog({
+  open,
+  onOpenChange,
+  type,
+  clientId,
+  clientName,
+}: LogInteractionDialogProps) {
+  const createActivity = useCreateActivity();
+  const [note, setNote] = useState("");
+
+  const prefix = type === "phone" ? "[Telefon]" : "[E-mail]";
+  const question =
+    type === "phone"
+      ? "Czy rozmowa telefoniczna się odbyła?"
+      : "Czy wiadomość e-mail została wysłana?";
+
+  const handleSave = () => {
+    const fullNote = note.trim()
+      ? `${prefix} ${note.trim()}`
+      : `${prefix} Kontakt z ${clientName}`;
+
+    createActivity.mutate(
+      {
+        clientId,
+        taskId: null,
+        dealId: null,
+        type: "NOTE_MANUAL",
+        note: fullNote,
+        metadata: {},
+      },
+      {
+        onSuccess: () => {
+          toast.success("Interakcja zapisana");
+          setNote("");
+          onOpenChange(false);
+        },
+        onError: () => {
+          toast.error("Nie udało się zapisać interakcji");
+        },
+      }
+    );
+  };
+
+  const handleSkip = () => {
+    setNote("");
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) handleSkip(); else onOpenChange(v); }}>
+      <DialogHeader>
+        <DialogTitle className="flex items-center gap-2">
+          {type === "phone" ? (
+            <Phone className="h-5 w-5 text-emerald-500" />
+          ) : (
+            <Mail className="h-5 w-5 text-blue-500" />
+          )}
+          Zanotować interakcję?
+        </DialogTitle>
+        <DialogDescription>{question}</DialogDescription>
+      </DialogHeader>
+
+      <div className="flex flex-col gap-3 py-2">
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Opcjonalna notatka…"
+          rows={3}
+          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+        />
+      </div>
+
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={handleSkip}>
+          Pomiń
+        </Button>
+        <Button
+          type="button"
+          onClick={handleSave}
+          disabled={createActivity.isPending}
+        >
+          {createActivity.isPending ? "Zapisywanie…" : "Zapisz"}
+        </Button>
+      </DialogFooter>
+    </Dialog>
+  );
 }
 
 // ─── Skeleton ────────────────────────────────────────────────
@@ -728,6 +826,7 @@ export function ClientDetailsPage() {
   const { data: client, isLoading, isError } = useClient(id);
   const [tab, setTab] = useState<Tab>("notes");
   const [editOpen, setEditOpen] = useState(false);
+  const [logInteractionType, setLogInteractionType] = useState<"phone" | "email" | null>(null);
 
   // ─── Loading ─────────────────────────────────────────────
   if (isLoading) {
@@ -808,16 +907,24 @@ export function ClientDetailsPage() {
               {/* Contact info */}
               <div className="mt-1 flex flex-col gap-0.5 text-sm text-muted-foreground">
                 {client.phone && (
-                  <span className="flex items-center gap-1.5">
+                  <a
+                    href={`tel:${client.phone}`}
+                    onClick={() => setLogInteractionType("phone")}
+                    className="flex items-center gap-1.5 hover:text-foreground transition-colors"
+                  >
                     <Phone className="h-3.5 w-3.5" />
                     {client.phone}
-                  </span>
+                  </a>
                 )}
                 {client.email && (
-                  <span className="flex items-center gap-1.5">
+                  <a
+                    href={`mailto:${client.email}`}
+                    onClick={() => setLogInteractionType("email")}
+                    className="flex items-center gap-1.5 hover:text-foreground transition-colors"
+                  >
                     <Mail className="h-3.5 w-3.5" />
                     {client.email}
-                  </span>
+                  </a>
                 )}
               </div>
 
@@ -842,10 +949,24 @@ export function ClientDetailsPage() {
           {/* Right: action buttons */}
           <div className="flex gap-2 shrink-0">
             {client.phone && (
-              <a href={`tel:${client.phone}`}>
+              <a
+                href={`tel:${client.phone}`}
+                onClick={() => setLogInteractionType("phone")}
+              >
                 <Button variant="outline" size="sm">
                   <Phone className="h-4 w-4" />
                   <span className="hidden sm:inline">Zadzwoń</span>
+                </Button>
+              </a>
+            )}
+            {client.email && (
+              <a
+                href={`mailto:${client.email}`}
+                onClick={() => setLogInteractionType("email")}
+              >
+                <Button variant="outline" size="sm">
+                  <Mail className="h-4 w-4" />
+                  <span className="hidden sm:inline">E-mail</span>
                 </Button>
               </a>
             )}
@@ -896,6 +1017,17 @@ export function ClientDetailsPage() {
         open={editOpen}
         onOpenChange={setEditOpen}
       />
+
+      {/* Log interaction dialog (Magic Links) */}
+      {id && (
+        <LogInteractionDialog
+          open={logInteractionType !== null}
+          onOpenChange={(v) => { if (!v) setLogInteractionType(null); }}
+          type={logInteractionType ?? "phone"}
+          clientId={id}
+          clientName={client.fullName}
+        />
+      )}
     </div>
   );
 }
