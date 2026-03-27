@@ -1,12 +1,13 @@
 import { Outlet } from "react-router-dom";
 import { NavLink } from "react-router-dom";
-import { LogOut, Menu, X, Sun, Moon, Settings } from "lucide-react";
+import { LogOut, Menu, X, Sun, Moon, Settings, Search } from "lucide-react";
 import { useState } from "react";
 import { useNetworkState } from "@/hooks/useNetworkState";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useTheme } from "@/lib/useTheme";
 import { Sidebar, MOBILE_NAV_ITEMS } from "./Sidebar";
 import { MobileFAB } from "./MobileFAB";
+import { GlobalSearch } from "./GlobalSearch";
 import { cn } from "@/lib/cn";
 import { WifiOff } from "lucide-react";
 
@@ -56,14 +57,24 @@ function MobileTopbar() {
         <span className="text-sm font-semibold text-foreground">Panel Eksperta</span>
       </div>
 
-      <button
-        type="button"
-        onClick={() => setMenuOpen((v) => !v)}
-        aria-label={menuOpen ? "Zamknij menu" : "Otwórz menu"}
-        className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer"
-      >
-        {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-      </button>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new Event("open-global-search"))}
+          aria-label="Szukaj"
+          className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer"
+        >
+          <Search className="h-5 w-5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setMenuOpen((v) => !v)}
+          aria-label={menuOpen ? "Zamknij menu" : "Otwórz menu"}
+          className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer"
+        >
+          {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </button>
+      </div>
 
       {/* Backdrop – closes menu on tap outside */}
       {menuOpen && (
@@ -189,6 +200,9 @@ export function AppShell() {
           </main>
         </div>
       </div>
+
+      {/* Global search (Ctrl+K) */}
+      <GlobalSearch />
 
       {/* Mobile FAB + bottom navigation */}
       <MobileFAB />
