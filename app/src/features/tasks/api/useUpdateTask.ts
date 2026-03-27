@@ -149,19 +149,25 @@ export function useRescheduleTask() {
       });
 
       // Log activity for reschedule
-      await createActivity(uid, {
-        clientId: input.clientId ?? null,
-        taskId: input.taskId,
-        dealId: null,
-        type: "TASK_RESCHEDULED",
-        note: input.note ?? "",
-        metadata: {
-          oldDate: input.oldDueDate ?? undefined,
-          newDate: input.dueDate,
-          taskTitle: input.title,
-          taskType: input.type,
-        },
-      });
+      const metadata: Record<string, string> = {
+        newDate: input.dueDate,
+        taskTitle: input.title,
+      };
+      if (input.oldDueDate) metadata.oldDate = input.oldDueDate;
+      if (input.type) metadata.taskType = input.type;
+
+      try {
+        await createActivity(uid, {
+          clientId: input.clientId ?? null,
+          taskId: input.taskId,
+          dealId: null,
+          type: "TASK_RESCHEDULED",
+          note: input.note ?? "",
+          metadata,
+        });
+      } catch (err) {
+        console.error("[Reschedule] Failed to create activity:", err);
+      }
 
       // Re-sync to Google Calendar if applicable
       if (input.syncToGoogleCalendar && input.dueDate) {
