@@ -34,11 +34,12 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/settings", label: "Ustawienia", icon: Settings },
 ];
 
-/** Subset shown in mobile bottom navigation (max 5 for small screens) */
+/** Items shown in mobile bottom navigation */
 export const MOBILE_NAV_ITEMS: NavItem[] = [
   { to: "/", label: "Start", icon: LayoutDashboard },
   { to: "/clients", label: "Klienci", icon: Users },
   { to: "/tasks", label: "Zadania", icon: CheckSquare },
+  { to: "/leads", label: "Leady", icon: Zap },
   { to: "/pipeline", label: "Lejek", icon: Kanban },
   { to: "/calendar", label: "Kalendarz", icon: Calendar },
 ];

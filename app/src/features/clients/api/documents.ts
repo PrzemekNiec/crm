@@ -100,7 +100,10 @@ export async function uploadDocument(
         const percent = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
         onProgress?.(percent);
       },
-      reject,
+      (error) => {
+        console.error("[Documents] Upload failed:", error.code, error.message);
+        reject(error);
+      },
       resolve
     );
   });

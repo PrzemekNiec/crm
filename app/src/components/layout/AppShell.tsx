@@ -1,6 +1,6 @@
 import { Outlet } from "react-router-dom";
 import { NavLink } from "react-router-dom";
-import { LogOut, Menu, X, Sun, Moon, Zap, Settings } from "lucide-react";
+import { LogOut, Menu, X, Sun, Moon, Settings } from "lucide-react";
 import { useState } from "react";
 import { useNetworkState } from "@/hooks/useNetworkState";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -101,14 +101,6 @@ function MobileTopbar() {
           <div className="my-1 border-t border-border" />
 
           {/* Links not in bottom nav */}
-          <NavLink
-            to="/leads"
-            onClick={() => setMenuOpen(false)}
-            className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
-          >
-            <Zap className="h-4 w-4" />
-            Potencjalni
-          </NavLink>
           <NavLink
             to="/settings"
             onClick={() => setMenuOpen(false)}
