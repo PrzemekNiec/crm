@@ -18,6 +18,7 @@ import {
 } from "../api/useDeals";
 import { dealsQueryKey } from "../api/deals";
 import { useClients } from "@/features/clients/api/useClients";
+import { ClientCombobox } from "@/components/ui/ClientCombobox";
 import { CLIENT_SOURCE_LABELS, type ClientSource } from "@/features/clients/types/client";
 import {
   DEAL_STAGES,
@@ -1614,13 +1615,15 @@ function AddDealDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const { data: clients = [] } = useClients();
   const createDeal = useCreateDeal();
+  const [clientName, setClientName] = useState("");
 
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
+    watch,
     formState: { errors },
   } = useForm<DealFormValues>({
     resolver: zodResolver(dealFormSchema),
@@ -1632,10 +1635,14 @@ function AddDealDialog({
     },
   });
 
+  const onClientSelect = (id: string, name: string) => {
+    setValue("clientId", id, { shouldValidate: true });
+    setClientName(name);
+  };
+
   const onSubmit = (values: DealFormValues) => {
-    const client = clients.find((c) => c.id === values.clientId);
     createDeal.mutate(
-      { ...values, clientName: client?.fullName },
+      { ...values, clientName },
       {
         onSuccess: () => {
           reset();
@@ -1654,19 +1661,14 @@ function AddDealDialog({
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="deal-client">Klient *</Label>
-            <select
-              id="deal-client"
-              {...register("clientId")}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <option value="">Wybierz klienta...</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.fullName}
-                </option>
-              ))}
-            </select>
+            <Label>Klient *</Label>
+            <ClientCombobox
+              value={watch("clientId")}
+              onChange={onClientSelect}
+              allowEmpty={false}
+              placeholder="Szukaj klienta..."
+            />
+            <input type="hidden" {...register("clientId")} />
             {errors.clientId && (
               <p className="text-xs text-destructive">
                 {errors.clientId.message}

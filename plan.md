@@ -1,6 +1,6 @@
 # CRM Master Plan — Rozwój aplikacji
 
-> Zaktualizowano: 2026-03-25
+> Zaktualizowano: 2026-03-26
 > Branch: `feature/faza-2-calendar-ui`
 > Firebase: `my-crm-586df` → https://my-crm-586df.web.app
 
@@ -38,25 +38,23 @@
 - Dialog size prop (sm/default) dla kompaktowych modali
 - Kontrast czcionek w light mode (emerald-700, grid-line variables)
 
----
+### Utwardzenie Google Calendar Sync (2026-03-25)
+- Stop starego kanału przy re-rejestracji (bez duplikatów webhooków)
+- Cloud Scheduler `renewCalendarWatches` co 6h (auto-renew kanałów < 24h)
+- Full re-sync po 410 (zamiast martwej synchronizacji → pełne odzyskanie eventów)
+- UI status w Settings (aktywny/wygasa/wygasł + data + przycisk "Odnów kanał")
+- Structured logging (`calendar.webhook.*`, `calendar.sync.*`, `calendar.watch.*`, `calendar.oauth.*`)
+- Cloud Function `onDealRejected` — soft delete eventów przy odrzuceniu deala
 
-## 🟢 NASTĘPNY: Utwardzenie Google Calendar Sync
-
-Szczegóły: `plan-calendar-hardening.md`
-
-### Prerequisite (ręczny krok)
-- [ ] GCP Console → APIs → Cloud Scheduler API → Enable
-
-### Kroki
-1. **Stop starego kanału** przy re-rejestracji — zapobiega duplikatom
-2. **Cloud Scheduler co 6h** — auto-renew kanałów wygasających w ciągu 24h
-3. **Full re-sync po 410** — zamiast "wyczyść i czekaj" → pełne odzyskanie
-4. **UI status** — banner na dashboardzie + info o wygaśnięciu w Settings
-5. **Structured logging** — etykiety `calendar.watch.*` / `calendar.sync.*`
+### Mobile Responsive Fixes (2026-03-26)
+- AppShell: `min-w-0` na flex content wrapper + `overflow-x-hidden` na `<main>` — naprawia Dashboard i wszystkie strony
+- Archiwum wypłat: `whitespace-nowrap` + `overflow-x-auto w-full` na tabelach, sticky `<thead>` z `bg-[var(--surface-4)]`
+- RejectedTable: analogiczne poprawki sticky header + scroll
+- Dashboard "Dziś do kontaktu": nowy dwurzędowy układ mobile (rząd 1: godzina + klient, rząd 2: typ zadania + akcje pod kciukiem)
 
 ---
 
-## 🟠 POTEM: Powiadomienia push PWA (6H)
+## 🟢 NASTĘPNY: Powiadomienia push PWA (6H)
 
 ### Prerequisite (ręczny krok)
 - [ ] Firebase Console → Project Settings → Cloud Messaging → Web Push certificates → Wygenerować klucz VAPID

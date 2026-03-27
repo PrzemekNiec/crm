@@ -12,7 +12,7 @@ import { Select } from "@/components/ui/Select";
 import { Label } from "@/components/ui/Label";
 import { Button } from "@/components/ui/Button";
 import { toast } from "@/components/ui/Toast";
-import { useClients } from "@/features/clients/api/useClients";
+import { ClientCombobox } from "@/components/ui/ClientCombobox";
 import { useCreateTask } from "../api/useCreateTask";
 import {
   taskFormSchema,
@@ -46,18 +46,9 @@ export function CreateTaskDialog({
   defaultClientId,
   defaultClientName,
 }: CreateTaskDialogProps) {
-  const { data: clients } = useClients();
   const createTask = useCreateTask();
 
   const hasDefaultClient = !!defaultClientId;
-
-  const clientOptions = [
-    { value: "", label: "Zadanie ogólne (brak klienta)" },
-    ...(clients ?? []).map((c) => ({
-      value: c.id,
-      label: c.fullName,
-    })),
-  ];
 
   const {
     register,
@@ -96,11 +87,9 @@ export function CreateTaskDialog({
     return opts;
   })();
 
-  const onClientChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selectedId = e.target.value;
-    const client = clients?.find((c) => c.id === selectedId);
-    setValue("clientId", selectedId);
-    setValue("clientName", client?.fullName ?? "");
+  const onClientSelect = (clientId: string, clientName: string) => {
+    setValue("clientId", clientId);
+    setValue("clientName", clientName);
   };
 
   const onSubmit = (values: TaskFormValues) => {
@@ -142,13 +131,12 @@ export function CreateTaskDialog({
           </div>
         ) : (
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="clientId">Klient</Label>
-            <Select
-              id="clientId"
-              options={clientOptions}
+            <Label>Klient</Label>
+            <ClientCombobox
               value={watch("clientId")}
-              onChange={onClientChange}
+              onChange={onClientSelect}
             />
+            <input type="hidden" {...register("clientId")} />
             <input type="hidden" {...register("clientName")} />
           </div>
         )}

@@ -400,7 +400,7 @@ function TaskActionButtons({ task }: { task: TaskDTO }) {
       <div className="flex shrink-0 items-center gap-1.5">
         <button
           type="button"
-          onClick={() => complete.mutate(task.id)}
+          onClick={() => complete.mutate({ taskId: task.id, clientId: task.clientId || null, taskTitle: task.title, taskType: task.type })}
           disabled={complete.isPending}
           title="Oznacz jako wykonane"
           className="flex h-7 w-7 items-center justify-center rounded-full border border-emerald-500/40 text-emerald-500 transition-all hover:bg-emerald-500 hover:text-white cursor-pointer"

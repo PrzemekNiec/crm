@@ -257,6 +257,17 @@ export async function rescheduleTask(
   return snap.exists() ? snap.data() : null;
 }
 
+// ─── Cancel task ────────────────────────────────────────────
+
+export async function cancelTask(uid: string, taskId: string): Promise<void> {
+  const db = getDb();
+  const ref = doc(db, "users", uid, "tasks", taskId);
+  await updateDoc(ref, {
+    status: "cancelled",
+    updatedAt: serverTimestamp(),
+  });
+}
+
 // ─── Delete task ────────────────────────────────────────────
 
 export async function deleteTask(uid: string, taskId: string): Promise<void> {

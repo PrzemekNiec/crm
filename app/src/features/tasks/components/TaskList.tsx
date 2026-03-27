@@ -17,8 +17,9 @@ import {
   type TaskType,
   type TaskDTO,
 } from "../types/task";
-import { useCompleteTask, useRescheduleTask } from "../api/useUpdateTask";
-import { useDeleteTask } from "../api/useDeleteTask";
+import { useRescheduleTask } from "../api/useUpdateTask";
+import { CompleteTaskDialog, CancelTaskDialog } from "./TaskActionDialogs";
+import { TaskDetailsSheet } from "./TaskDetailsSheet";
 import {
   Briefcase,
   Calendar,
@@ -118,6 +119,7 @@ export function RescheduleDialog({
 
   const [date, setDate] = useState(currentDate);
   const [time, setTime] = useState(currentTime);
+  const [note, setNote] = useState("");
 
   const handleSave = () => {
     if (!date) return;
@@ -132,9 +134,15 @@ export function RescheduleDialog({
         googleEventId: task.googleEventId,
         syncToGoogleCalendar: task.syncToGoogleCalendar,
         type: task.type,
+        clientId: task.clientId || null,
+        note: note.trim(),
+        oldDueDate: task.dueDate,
       },
       {
-        onSuccess: () => onOpenChange(false),
+        onSuccess: () => {
+          setNote("");
+          onOpenChange(false);
+        },
       }
     );
   };
@@ -164,6 +172,13 @@ export function RescheduleDialog({
             />
           </div>
         </div>
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Powód przełożenia (opcjonalnie)..."
+          rows={2}
+          className="w-full resize-none rounded-lg bg-[var(--surface-6)] border border-[var(--surface-8)] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+        />
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Anuluj
@@ -184,10 +199,10 @@ export function RescheduleDialog({
 
 export function TaskActions({ task }: { task: TaskDTO }) {
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
-  const complete = useCompleteTask();
-  const deleteTask = useDeleteTask();
+  const [completeOpen, setCompleteOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
 
-  const isDone = task.status === "done" || task.status === "cancelled";
+  const isDone = task.status === "done" || task.status === "cancelled" || task.status === "system_cancelled";
 
   return (
     <>
@@ -196,9 +211,8 @@ export function TaskActions({ task }: { task: TaskDTO }) {
         {!isDone && (
           <button
             type="button"
-            onClick={() => complete.mutate(task.id)}
-            disabled={complete.isPending}
-            title="Oznacz jako wykonane"
+            onClick={() => setCompleteOpen(true)}
+            title="Zakończ zadanie"
             className="flex h-7 w-7 items-center justify-center rounded-full border border-emerald-500/40 text-emerald-500 transition-all hover:bg-emerald-500 hover:text-white cursor-pointer"
           >
             <Check className="h-3.5 w-3.5" />
@@ -217,28 +231,33 @@ export function TaskActions({ task }: { task: TaskDTO }) {
           </button>
         )}
 
-        {/* Delete — red */}
-        <button
-          type="button"
-          onClick={() =>
-            deleteTask.mutate({
-              taskId: task.id,
-              googleEventId: task.googleEventId,
-              syncToGoogleCalendar: task.syncToGoogleCalendar,
-            })
-          }
-          disabled={deleteTask.isPending}
-          title="Usuń"
-          className="flex h-7 w-7 items-center justify-center rounded-full border border-red-500/40 text-red-500 transition-all hover:bg-red-500 hover:text-white cursor-pointer"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
+        {/* Cancel — red */}
+        {!isDone && (
+          <button
+            type="button"
+            onClick={() => setCancelOpen(true)}
+            title="Anuluj zadanie"
+            className="flex h-7 w-7 items-center justify-center rounded-full border border-red-500/40 text-red-500 transition-all hover:bg-red-500 hover:text-white cursor-pointer"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
 
+      <CompleteTaskDialog
+        task={task}
+        open={completeOpen}
+        onOpenChange={setCompleteOpen}
+      />
       <RescheduleDialog
         task={task}
         open={rescheduleOpen}
         onOpenChange={setRescheduleOpen}
+      />
+      <CancelTaskDialog
+        task={task}
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
       />
     </>
   );
@@ -266,6 +285,8 @@ function SkeletonCard() {
 // ─── Component ───────────────────────────────────────────────
 
 export function TaskList({ tasks, isLoading, tab }: TaskListProps) {
+  const [selectedTask, setSelectedTask] = useState<TaskDTO | null>(null);
+
   const filtered = useMemo(() => {
     if (!tasks) return [];
 
@@ -313,83 +334,95 @@ export function TaskList({ tasks, isLoading, tab }: TaskListProps) {
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      {filtered.map((task) => (
-        <div
-          key={task.id}
-          className={`rounded-xl p-4 transition-colors ${
-            task.status === "done" ? "opacity-60" : ""
-          }`}
-          style={{
-            ...GLASS,
-            border: task.dueDate && isOverdue(task.dueDate) && !isToday(task.dueDate) && task.status !== "done"
-              ? "1px solid rgba(239, 68, 68, 0.3)"
-              : undefined,
-          }}
-        >
-          <div className="flex items-start gap-3">
-            {/* Type emoji */}
-            <span className="mt-0.5 text-lg leading-none">
-              {TASK_TYPE_EMOJI[task.type as TaskType] ?? "📌"}
-            </span>
+    <>
+      <div className="flex flex-col gap-2">
+        {filtered.map((task) => (
+          <div
+            key={task.id}
+            className={`rounded-xl p-4 transition-colors cursor-pointer hover:ring-1 hover:ring-white/10 ${
+              task.status === "done" ? "opacity-60" : ""
+            }`}
+            style={{
+              ...GLASS,
+              border: task.dueDate && isOverdue(task.dueDate) && !isToday(task.dueDate) && task.status !== "done"
+                ? "1px solid rgba(239, 68, 68, 0.3)"
+                : undefined,
+            }}
+            onClick={() => setSelectedTask(task)}
+          >
+            <div className="flex items-start gap-3">
+              {/* Type emoji */}
+              <span className="mt-0.5 text-lg leading-none">
+                {TASK_TYPE_EMOJI[task.type as TaskType] ?? "📌"}
+              </span>
 
-            <div className="flex-1 min-w-0">
-              {/* Title + status */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <p
-                  className={`font-medium text-foreground ${
-                    task.status === "done" ? "line-through" : ""
-                  }`}
-                >
-                  {task.title}
-                </p>
-                <Badge variant="secondary" className="text-[10px]">
-                  {TASK_TYPE_LABELS[task.type as TaskType] ?? task.type}
-                </Badge>
-                {task.status === "done" && (
-                  <Badge variant="success">Wykonane</Badge>
-                )}
-                {task.status === "cancelled" && (
-                  <Badge variant="warning">Anulowane</Badge>
-                )}
-              </div>
+              <div className="flex-1 min-w-0">
+                {/* Title + status */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p
+                    className={`font-medium text-foreground ${
+                      task.status === "done" ? "line-through" : ""
+                    }`}
+                  >
+                    {task.title}
+                  </p>
+                  <Badge variant="secondary" className="text-[10px]">
+                    {TASK_TYPE_LABELS[task.type as TaskType] ?? task.type}
+                  </Badge>
+                  {task.status === "done" && (
+                    <Badge variant="success">Wykonane</Badge>
+                  )}
+                  {task.status === "cancelled" && (
+                    <Badge variant="warning">Anulowane</Badge>
+                  )}
+                </div>
 
-              {/* Client */}
-              <div className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
-                {task.clientName ? (
-                  <>
-                    <User className="h-3 w-3" />
-                    {task.clientName}
-                  </>
-                ) : (
-                  <>
-                    <Briefcase className="h-3 w-3" />
-                    <span className="italic">Zadanie ogólne</span>
-                  </>
-                )}
-              </div>
+                {/* Client */}
+                <div className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+                  {task.clientName ? (
+                    <>
+                      <User className="h-3 w-3" />
+                      {task.clientName}
+                    </>
+                  ) : (
+                    <>
+                      <Briefcase className="h-3 w-3" />
+                      <span className="italic">Zadanie ogólne</span>
+                    </>
+                  )}
+                </div>
 
-              {/* Due date + duration + sync */}
-              <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                {task.dueDate && (
+                {/* Due date + duration + sync */}
+                <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                  {task.dueDate && (
+                    <span className="flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      {formatDate(task.dueDate)} {formatTime(task.dueDate)}
+                    </span>
+                  )}
                   <span className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    {formatDate(task.dueDate)} {formatTime(task.dueDate)}
+                    <Clock className="h-3 w-3" />
+                    {task.durationMin} minut
                   </span>
-                )}
-                <span className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  {task.durationMin} minut
-                </span>
-                {task.syncToGoogleCalendar && syncBadge(task.syncState)}
+                  {task.syncToGoogleCalendar && syncBadge(task.syncState)}
+                </div>
+              </div>
+
+              {/* Actions — stop propagation so clicking buttons doesn't open sheet */}
+              {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+              <div onClick={(e) => e.stopPropagation()}>
+                <TaskActions task={task} />
               </div>
             </div>
-
-            {/* Actions */}
-            <TaskActions task={task} />
           </div>
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+
+      <TaskDetailsSheet
+        task={selectedTask}
+        open={!!selectedTask}
+        onOpenChange={(open) => { if (!open) setSelectedTask(null); }}
+      />
+    </>
   );
 }

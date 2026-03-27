@@ -234,7 +234,7 @@ function TaskPopup({
             size="sm"
             variant="default"
             className="flex-1 text-xs"
-            onClick={() => { completeTask.mutate(task.id); onClose(); }}
+            onClick={() => { completeTask.mutate({ taskId: task.id, clientId: task.clientId || null, taskTitle: task.title, taskType: task.type }); onClose(); }}
           >
             Ukończ
           </Button>

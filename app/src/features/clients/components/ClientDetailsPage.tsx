@@ -28,7 +28,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "@/components/ui/Toast";
 import { useClient } from "../api/useClient";
-import { useNotes, useCreateNote } from "../api/useNotes";
+import { useClientActivities, useCreateActivity } from "@/features/activities/api/useActivities";
+import { ActivityTimeline } from "@/features/activities/components/ActivityTimeline";
 import {
   useClientDocuments,
   useUploadDocument,
@@ -102,20 +103,6 @@ function formatTime(iso: string): string {
   });
 }
 
-function formatRelative(iso: string): string {
-  const date = new Date(iso);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return "Przed chwilą";
-  if (diffMin < 60)
-    return `${diffMin} ${diffMin === 1 ? "minutę" : diffMin < 5 ? "minuty" : "minut"} temu`;
-  const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24)
-    return `${diffH} ${diffH === 1 ? "godzinę" : diffH < 5 ? "godziny" : "godzin"} temu`;
-  return formatDate(iso);
-}
-
 // ─── Skeleton ────────────────────────────────────────────────
 
 function HeaderSkeleton() {
@@ -132,20 +119,30 @@ function HeaderSkeleton() {
   );
 }
 
-// ─── Notes Tab ───────────────────────────────────────────────
+// ─── Activity Timeline Tab (replaces old NotesTab) ──────────
 
-function NotesTab({ clientId }: { clientId: string }) {
-  const { data: notes, isLoading } = useNotes(clientId);
-  const createNote = useCreateNote(clientId);
+function ActivityTimelineTab({ clientId }: { clientId: string }) {
+  const { data: activities, isLoading } = useClientActivities(clientId);
+  const createActivity = useCreateActivity();
   const [content, setContent] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = content.trim();
     if (!trimmed) return;
-    createNote.mutate(trimmed, {
-      onSuccess: () => setContent(""),
-    });
+    createActivity.mutate(
+      {
+        clientId,
+        taskId: null,
+        dealId: null,
+        type: "NOTE_MANUAL",
+        note: trimmed,
+        metadata: {},
+      },
+      {
+        onSuccess: () => setContent(""),
+      }
+    );
   };
 
   return (
@@ -162,54 +159,20 @@ function NotesTab({ clientId }: { clientId: string }) {
         <div className="mt-3 flex justify-end">
           <Button
             type="submit"
-            disabled={!content.trim() || createNote.isPending}
+            disabled={!content.trim() || createActivity.isPending}
           >
             <Send className="h-4 w-4" />
-            {createNote.isPending ? "Zapisywanie…" : "Dodaj notatkę"}
+            {createActivity.isPending ? "Zapisywanie…" : "Dodaj notatkę"}
           </Button>
         </div>
       </form>
 
-      {/* Notes list */}
-      {isLoading ? (
-        <div className="flex flex-col gap-2">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div
-              key={i}
-              className="rounded-xl p-4 animate-pulse"
-              style={glassStyle}
-            >
-              <div className="h-3 w-3/4 rounded bg-muted" />
-              <div className="mt-2 h-3 w-1/2 rounded bg-muted" />
-            </div>
-          ))}
-        </div>
-      ) : !notes || notes.length === 0 ? (
-        <div
-          className="flex flex-col items-center gap-2 rounded-xl p-12 text-center"
-          style={glassStyle}
-        >
-          <FileText className="h-10 w-10 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">
-            Brak notatek. Dodaj pierwszą notatkę powyżej.
-          </p>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-2">
-          {notes.map((note) => (
-            <div key={note.id} className="rounded-xl p-4" style={glassStyle}>
-              <p className="text-sm text-foreground whitespace-pre-wrap">
-                {note.content}
-              </p>
-              {note.createdAt && (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {formatRelative(note.createdAt)}
-                </p>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Unified activity timeline */}
+      <ActivityTimeline
+        activities={activities}
+        isLoading={isLoading}
+        emptyMessage="Brak wpisów. Dodaj pierwszą notatkę powyżej lub wykonaj akcję na zadaniu."
+      />
     </div>
   );
 }
@@ -912,7 +875,7 @@ export function ClientDetailsPage() {
       </div>
 
       {/* Tab content */}
-      {tab === "notes" && id && <NotesTab clientId={id} />}
+      {tab === "notes" && id && <ActivityTimelineTab clientId={id} />}
       {tab === "tasks" && id && <TasksTab clientId={id} clientName={client.fullName} />}
       {tab === "documents" && id && <DocumentsTab clientId={id} />}
       {tab === "deals" && id && <DealsTab clientId={id} clientName={client.fullName} />}
