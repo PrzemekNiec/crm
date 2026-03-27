@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GoogleOAuthProvider } from "@react-oauth/google";
@@ -5,15 +6,30 @@ import { useAuthListener } from "@/hooks/useAuthListener";
 import { AuthGuard } from "@/components/AuthGuard";
 import { AppShell } from "@/components/layout/AppShell";
 import { ToastContainer } from "@/components/ui/Toast";
-import { CommandPalette } from "@/components/CommandPalette";
-import { DashboardPage } from "@/features/dashboard/components/DashboardPage";
-import { ClientsPage } from "@/features/clients/components/ClientsPage";
-import { TasksPage } from "@/features/tasks/components/TasksPage";
-import { SettingsPage } from "@/features/settings/components/SettingsPage";
-import { LeadsPage } from "@/features/leads/components/LeadsPage";
-import { ClientDetailsPage } from "@/features/clients/components/ClientDetailsPage";
-import { PipelinePage } from "@/features/deals/components/PipelinePage";
-import { CalendarView } from "@/features/calendar/components/CalendarView";
+import { Loader2 } from "lucide-react";
+
+// ─── Lazy-loaded pages ──────────────────────────────────────
+
+const DashboardPage = lazy(() => import("@/features/dashboard/components/DashboardPage").then((m) => ({ default: m.DashboardPage })));
+const ClientsPage = lazy(() => import("@/features/clients/components/ClientsPage").then((m) => ({ default: m.ClientsPage })));
+const ClientDetailsPage = lazy(() => import("@/features/clients/components/ClientDetailsPage").then((m) => ({ default: m.ClientDetailsPage })));
+const TasksPage = lazy(() => import("@/features/tasks/components/TasksPage").then((m) => ({ default: m.TasksPage })));
+const LeadsPage = lazy(() => import("@/features/leads/components/LeadsPage").then((m) => ({ default: m.LeadsPage })));
+const PipelinePage = lazy(() => import("@/features/deals/components/PipelinePage").then((m) => ({ default: m.PipelinePage })));
+const CalendarView = lazy(() => import("@/features/calendar/components/CalendarView").then((m) => ({ default: m.CalendarView })));
+const SettingsPage = lazy(() => import("@/features/settings/components/SettingsPage").then((m) => ({ default: m.SettingsPage })));
+
+// ─── Suspense fallback ──────────────────────────────────────
+
+function PageLoader() {
+  return (
+    <div className="flex flex-1 items-center justify-center p-12">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    </div>
+  );
+}
+
+// ─── Config ─────────────────────────────────────────────────
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
 
@@ -33,14 +49,70 @@ function AppInner() {
     <AuthGuard>
       <Routes>
         <Route element={<AppShell />}>
-          <Route index element={<DashboardPage />} />
-          <Route path="clients" element={<ClientsPage />} />
-          <Route path="tasks" element={<TasksPage />} />
-          <Route path="leads" element={<LeadsPage />} />
-          <Route path="pipeline" element={<PipelinePage />} />
-          <Route path="calendar" element={<CalendarView />} />
-          <Route path="settings" element={<SettingsPage />} />
-          <Route path="clients/:id" element={<ClientDetailsPage />} />
+          <Route
+            index
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <DashboardPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="clients"
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <ClientsPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="clients/:id"
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <ClientDetailsPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="tasks"
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <TasksPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="leads"
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <LeadsPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="pipeline"
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <PipelinePage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="calendar"
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <CalendarView />
+              </Suspense>
+            }
+          />
+          <Route
+            path="settings"
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <SettingsPage />
+              </Suspense>
+            }
+          />
         </Route>
       </Routes>
     </AuthGuard>
@@ -53,7 +125,6 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <AppInner />
-          <CommandPalette />
           <ToastContainer />
         </BrowserRouter>
       </QueryClientProvider>

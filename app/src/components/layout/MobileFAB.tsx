@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Plus, Zap, Users, Briefcase, CheckSquare, X } from "lucide-react";
 import { CreateLeadDialog } from "@/features/leads/components/CreateLeadDialog";
 import { CreateClientDialog } from "@/features/clients/components/CreateClientDialog";
-import { AddDealDialog } from "@/features/deals/components/PipelinePage";
+import { AddDealDialog } from "@/features/deals/components/AddDealDialog";
 import { CreateTaskDialog } from "@/features/tasks/components/CreateTaskDialog";
 
 // ─── Speed-dial action items ─────────────────────────────────

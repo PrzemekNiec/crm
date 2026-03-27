@@ -35,6 +35,7 @@ const MAX_RESULTS_PER_CATEGORY = 5;
 export function GlobalSearch() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [selectedIdx, setSelectedIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -68,15 +69,23 @@ export function GlobalSearch() {
   useEffect(() => {
     if (open) {
       setQuery("");
+      setDebouncedQuery("");
       setSelectedIdx(0);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [open]);
 
+  // ─── Debounce search query (300ms) ─────────────────────────
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(query), 300);
+    return () => clearTimeout(timer);
+  }, [query]);
+
   // ─── Build search results ─────────────────────────────────
 
   const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = debouncedQuery.trim().toLowerCase();
     if (!q) return [];
 
     const matches: SearchResult[] = [];
@@ -245,9 +254,9 @@ export function GlobalSearch() {
 
         {/* Results */}
         <div ref={listRef} className="max-h-[50vh] overflow-y-auto p-2">
-          {query.trim() && flatResults.length === 0 && (
+          {debouncedQuery.trim() && flatResults.length === 0 && (
             <p className="px-3 py-6 text-center text-sm text-muted-foreground">
-              Brak wyników dla "{query}"
+              Brak wyników dla "{debouncedQuery}"
             </p>
           )}
 
