@@ -98,7 +98,9 @@ const dealConverter: FirestoreDataConverter<DealDTO> = {
       rejectionReason: d.rejectionReason ?? undefined,
       stageUpdatedAt: d.stageUpdatedAt?.toDate?.()
         ? d.stageUpdatedAt.toDate().toISOString()
-        : undefined,
+        : d.createdAt?.toDate?.()
+          ? d.createdAt.toDate().toISOString()
+          : new Date().toISOString(),
     };
   },
 };
