@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   Phone,
   Mail,
+  MessageCircle,
   Pencil,
   FileText,
   ClipboardList,
@@ -103,15 +104,36 @@ function formatTime(iso: string): string {
   });
 }
 
+function whatsappUrl(phone: string): string {
+  // Strip everything except digits and leading +
+  let num = phone.replace(/[^\d+]/g, "");
+  // Add Polish prefix if missing
+  if (!num.startsWith("+") && !num.startsWith("48")) {
+    num = "48" + num;
+  } else if (num.startsWith("+")) {
+    num = num.slice(1);
+  }
+  return `https://wa.me/${num}?text=${encodeURIComponent("Dzień dobry")}`;
+}
+
 // ─── Log Interaction Dialog (Phase 5.2: Magic Links) ────────
 
 interface LogInteractionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  type: "phone" | "email";
+  type: "phone" | "email" | "whatsapp";
   clientId: string;
   clientName: string;
 }
+
+const INTERACTION_META: Record<
+  LogInteractionDialogProps["type"],
+  { prefix: string; question: string; icon: typeof Phone; iconColor: string }
+> = {
+  phone: { prefix: "[Telefon]", question: "Czy rozmowa telefoniczna się odbyła?", icon: Phone, iconColor: "text-emerald-500" },
+  email: { prefix: "[E-mail]", question: "Czy wiadomość e-mail została wysłana?", icon: Mail, iconColor: "text-blue-500" },
+  whatsapp: { prefix: "[WhatsApp]", question: "Czy wysłano wiadomość na WhatsApp?", icon: MessageCircle, iconColor: "text-green-500" },
+};
 
 function LogInteractionDialog({
   open,
@@ -123,11 +145,9 @@ function LogInteractionDialog({
   const createActivity = useCreateActivity();
   const [note, setNote] = useState("");
 
-  const prefix = type === "phone" ? "[Telefon]" : "[E-mail]";
-  const question =
-    type === "phone"
-      ? "Czy rozmowa telefoniczna się odbyła?"
-      : "Czy wiadomość e-mail została wysłana?";
+  const meta = INTERACTION_META[type];
+  const prefix = meta.prefix;
+  const question = meta.question;
 
   const handleSave = () => {
     const fullNote = note.trim()
@@ -165,11 +185,7 @@ function LogInteractionDialog({
     <Dialog open={open} onOpenChange={(v) => { if (!v) handleSkip(); else onOpenChange(v); }}>
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
-          {type === "phone" ? (
-            <Phone className="h-5 w-5 text-emerald-500" />
-          ) : (
-            <Mail className="h-5 w-5 text-blue-500" />
-          )}
+          <meta.icon className={`h-5 w-5 ${meta.iconColor}`} />
           Zanotować interakcję?
         </DialogTitle>
         <DialogDescription>{question}</DialogDescription>
@@ -826,7 +842,7 @@ export function ClientDetailsPage() {
   const { data: client, isLoading, isError } = useClient(id);
   const [tab, setTab] = useState<Tab>("notes");
   const [editOpen, setEditOpen] = useState(false);
-  const [logInteractionType, setLogInteractionType] = useState<"phone" | "email" | null>(null);
+  const [logInteractionType, setLogInteractionType] = useState<"phone" | "email" | "whatsapp" | null>(null);
 
   // ─── Loading ─────────────────────────────────────────────
   if (isLoading) {
@@ -967,6 +983,19 @@ export function ClientDetailsPage() {
                 <Button variant="outline" size="sm">
                   <Mail className="h-4 w-4" />
                   <span className="hidden sm:inline">E-mail</span>
+                </Button>
+              </a>
+            )}
+            {client.phone && (
+              <a
+                href={whatsappUrl(client.phone)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setLogInteractionType("whatsapp")}
+              >
+                <Button variant="outline" size="sm">
+                  <MessageCircle className="h-4 w-4 text-green-500" />
+                  <span className="hidden sm:inline">WhatsApp</span>
                 </Button>
               </a>
             )}
