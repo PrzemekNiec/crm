@@ -51,9 +51,11 @@ import {
   Hourglass,
   Send,
 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, addMonths } from "date-fns";
 import { pl } from "date-fns/locale";
 import { cn } from "@/lib/cn";
+import { toast } from "@/components/ui/Toast";
+import { createTask } from "@/features/tasks/api/tasks";
 import { GLASS, GLASS_CARD } from "@/lib/glass";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -1457,6 +1459,15 @@ function DealHistoryModal({
 
 // ─── Settle Deal Modal ──────────────────────────────────────
 
+const FOLLOWUP_MONTHS = [
+  { value: 1, label: "1 miesiąc" },
+  { value: 3, label: "3 miesiące" },
+  { value: 6, label: "6 miesięcy" },
+  { value: 11, label: "11 miesięcy" },
+  { value: 12, label: "12 miesięcy" },
+  { value: 24, label: "24 miesiące" },
+];
+
 function SettleDealModal({
   deal,
   onClose,
@@ -1464,7 +1475,10 @@ function SettleDealModal({
   deal: DealDTO | null;
   onClose: () => void;
 }) {
+  const uid = useAuthStore((s) => s.user?.uid);
   const archive = useArchiveDeal();
+  const [scheduleTask, setScheduleTask] = useState(true);
+  const [followupMonths, setFollowupMonths] = useState(11);
 
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -1497,6 +1511,8 @@ function SettleDealModal({
         payoutDate: deal.payoutDate ?? currentMonth,
         notes: deal.notes ?? "",
       });
+      setScheduleTask(true);
+      setFollowupMonths(11);
     }
   }, [deal?.id]);
 
@@ -1511,11 +1527,33 @@ function SettleDealModal({
 
   if (!deal) return null;
 
-  const onSubmit = (values: SettleDealValues) => {
+  const onSubmit = async (values: SettleDealValues) => {
     archive.mutate(
       { dealId: deal.id, values },
       {
-        onSuccess: () => {
+        onSuccess: async () => {
+          // Create follow-up task if checkbox is checked
+          if (scheduleTask && uid && deal.clientId) {
+            try {
+              const dueDate = addMonths(new Date(), followupMonths);
+              dueDate.setHours(9, 0, 0, 0);
+              await createTask({
+                uid,
+                clientId: deal.clientId,
+                clientName: deal.clientName ?? "",
+                type: "followup",
+                title: `Kontakt relacyjny / Rocznica — ${deal.title}`,
+                description: `Automatyczne zadanie posprzedażowe. Szansa: ${deal.title}, kwota: ${formatCurrency(deal.value)}.`,
+                dueDate: dueDate.toISOString(),
+                durationMin: 15,
+                priority: "normal",
+                syncToGoogleCalendar: false,
+              });
+              toast.success(`Zaplanowano kontakt relacyjny za ${followupMonths} miesięcy`);
+            } catch {
+              toast.error("Nie udało się zaplanować zadania relacyjnego");
+            }
+          }
           reset();
           onClose();
         },
@@ -1603,6 +1641,37 @@ function SettleDealModal({
               rows={2}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-ring resize-y"
             />
+          </div>
+
+          {/* Follow-up task checkbox */}
+          <div className="rounded-lg border border-border bg-[var(--surface-4)] p-3 space-y-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={scheduleTask}
+                onChange={(e) => setScheduleTask(e.target.checked)}
+                className="h-4 w-4 rounded border-border accent-primary"
+              />
+              <span className="text-sm font-medium text-foreground">
+                Zaplanuj zadanie relacyjne (kontakt posprzedażowy)
+              </span>
+            </label>
+            {scheduleTask && (
+              <div className="flex items-center gap-2 pl-6">
+                <span className="text-xs text-muted-foreground">Przypomnij za</span>
+                <select
+                  value={followupMonths}
+                  onChange={(e) => setFollowupMonths(Number(e.target.value))}
+                  className="rounded-md border border-input bg-background px-2 py-1 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+                >
+                  {FOLLOWUP_MONTHS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
