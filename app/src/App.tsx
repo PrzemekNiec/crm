@@ -6,6 +6,7 @@ import { useAuthListener } from "@/hooks/useAuthListener";
 import { AuthGuard } from "@/components/AuthGuard";
 import { AppShell } from "@/components/layout/AppShell";
 import { ToastContainer } from "@/components/ui/Toast";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Loader2 } from "lucide-react";
 
 // ─── Lazy-loaded pages ──────────────────────────────────────
@@ -19,13 +20,21 @@ const PipelinePage = lazy(() => import("@/features/deals/components/PipelinePage
 const CalendarView = lazy(() => import("@/features/calendar/components/CalendarView").then((m) => ({ default: m.CalendarView })));
 const SettingsPage = lazy(() => import("@/features/settings/components/SettingsPage").then((m) => ({ default: m.SettingsPage })));
 
-// ─── Suspense fallback ──────────────────────────────────────
+// ─── Page wrapper (ErrorBoundary + Suspense) ────────────────
 
 function PageLoader() {
   return (
     <div className="flex flex-1 items-center justify-center p-12">
       <Loader2 className="h-8 w-8 animate-spin text-primary" />
     </div>
+  );
+}
+
+function Page({ children }: { children: React.ReactNode }) {
+  return (
+    <ErrorBoundary>
+      <Suspense fallback={<PageLoader />}>{children}</Suspense>
+    </ErrorBoundary>
   );
 }
 
@@ -49,70 +58,14 @@ function AppInner() {
     <AuthGuard>
       <Routes>
         <Route element={<AppShell />}>
-          <Route
-            index
-            element={
-              <Suspense fallback={<PageLoader />}>
-                <DashboardPage />
-              </Suspense>
-            }
-          />
-          <Route
-            path="clients"
-            element={
-              <Suspense fallback={<PageLoader />}>
-                <ClientsPage />
-              </Suspense>
-            }
-          />
-          <Route
-            path="clients/:id"
-            element={
-              <Suspense fallback={<PageLoader />}>
-                <ClientDetailsPage />
-              </Suspense>
-            }
-          />
-          <Route
-            path="tasks"
-            element={
-              <Suspense fallback={<PageLoader />}>
-                <TasksPage />
-              </Suspense>
-            }
-          />
-          <Route
-            path="leads"
-            element={
-              <Suspense fallback={<PageLoader />}>
-                <LeadsPage />
-              </Suspense>
-            }
-          />
-          <Route
-            path="pipeline"
-            element={
-              <Suspense fallback={<PageLoader />}>
-                <PipelinePage />
-              </Suspense>
-            }
-          />
-          <Route
-            path="calendar"
-            element={
-              <Suspense fallback={<PageLoader />}>
-                <CalendarView />
-              </Suspense>
-            }
-          />
-          <Route
-            path="settings"
-            element={
-              <Suspense fallback={<PageLoader />}>
-                <SettingsPage />
-              </Suspense>
-            }
-          />
+          <Route index element={<Page><DashboardPage /></Page>} />
+          <Route path="clients" element={<Page><ClientsPage /></Page>} />
+          <Route path="clients/:id" element={<Page><ClientDetailsPage /></Page>} />
+          <Route path="tasks" element={<Page><TasksPage /></Page>} />
+          <Route path="leads" element={<Page><LeadsPage /></Page>} />
+          <Route path="pipeline" element={<Page><PipelinePage /></Page>} />
+          <Route path="calendar" element={<Page><CalendarView /></Page>} />
+          <Route path="settings" element={<Page><SettingsPage /></Page>} />
         </Route>
       </Routes>
     </AuthGuard>
@@ -121,13 +74,15 @@ function AppInner() {
 
 export default function App() {
   return (
-    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-      <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <AppInner />
-          <ToastContainer />
-        </BrowserRouter>
-      </QueryClientProvider>
-    </GoogleOAuthProvider>
+    <ErrorBoundary fallbackTitle="Aplikacja napotkała krytyczny błąd">
+      <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+        <QueryClientProvider client={queryClient}>
+          <BrowserRouter>
+            <AppInner />
+            <ToastContainer />
+          </BrowserRouter>
+        </QueryClientProvider>
+      </GoogleOAuthProvider>
+    </ErrorBoundary>
   );
 }
