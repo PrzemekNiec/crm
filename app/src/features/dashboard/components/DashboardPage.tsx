@@ -341,6 +341,7 @@ function RescheduleDialog({
   const currentTime = task.dueDate?.split("T")[1]?.slice(0, 5) ?? "";
   const [date, setDate] = useState(currentDate);
   const [time, setTime] = useState(currentTime);
+  const [note, setNote] = useState("");
 
   const handleSave = () => {
     if (!date) return;
@@ -355,8 +356,16 @@ function RescheduleDialog({
         googleEventId: task.googleEventId,
         syncToGoogleCalendar: task.syncToGoogleCalendar,
         type: task.type,
+        clientId: task.clientId || null,
+        note: note.trim(),
+        oldDueDate: task.dueDate,
       },
-      { onSuccess: () => onOpenChange(false) }
+      {
+        onSuccess: () => {
+          setNote("");
+          onOpenChange(false);
+        },
+      }
     );
   };
 
@@ -377,6 +386,13 @@ function RescheduleDialog({
             <Select options={TIME_OPTIONS} value={time} onChange={(e) => setTime(e.target.value)} />
           </div>
         </div>
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Powód przełożenia (opcjonalnie)..."
+          rows={2}
+          className="w-full resize-none rounded-lg bg-[var(--surface-6)] border border-[var(--surface-8)] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+        />
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Anuluj</Button>
           <Button onClick={handleSave} disabled={!date || reschedule.isPending}>
