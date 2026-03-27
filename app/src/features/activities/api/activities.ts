@@ -8,7 +8,11 @@ import {
   writeBatch,
   doc,
   serverTimestamp,
+  limit as fsLimit,
+  startAfter,
   type Timestamp,
+  type QueryDocumentSnapshot,
+  type DocumentData,
 } from "firebase/firestore";
 import { getDb } from "@/lib/firebase";
 import type { ActivityDTO, ActivityType, ActivityMetadata } from "../types/activity";
@@ -57,38 +61,54 @@ export function taskActivitiesQueryKey(uid: string, taskId: string) {
   return ["activities", "task", uid, taskId] as const;
 }
 
-// ─── Fetch by client ─────────────────────────────────────────
+// ─── Paginated result type ───────────────────────────────────
+
+export const ACTIVITIES_PAGE_SIZE = 10;
+
+export interface PaginatedActivities {
+  items: ActivityDTO[];
+  lastDoc: QueryDocumentSnapshot<DocumentData> | null;
+  hasMore: boolean;
+}
+
+// ─── Fetch by client (paginated) ─────────────────────────────
 
 export async function fetchActivitiesByClient(
   uid: string,
-  clientId: string
-): Promise<ActivityDTO[]> {
+  clientId: string,
+  cursor?: QueryDocumentSnapshot<DocumentData> | null
+): Promise<PaginatedActivities> {
   const db = getDb();
   const ref = collection(db, "users", uid, "activities");
-  const q = query(
-    ref,
-    where("clientId", "==", clientId),
-    orderBy("createdAt", "desc")
-  );
+  const q = cursor
+    ? query(ref, where("clientId", "==", clientId), orderBy("createdAt", "desc"), startAfter(cursor), fsLimit(ACTIVITIES_PAGE_SIZE))
+    : query(ref, where("clientId", "==", clientId), orderBy("createdAt", "desc"), fsLimit(ACTIVITIES_PAGE_SIZE));
+
   const snap = await getDocs(q);
-  return snap.docs.map((d) => docToDTO(d.id, d.data() as ActivityDoc));
+  const items = snap.docs.map((d) => docToDTO(d.id, d.data() as ActivityDoc));
+  const lastDoc = snap.docs[snap.docs.length - 1] ?? null;
+
+  return { items, lastDoc, hasMore: snap.docs.length === ACTIVITIES_PAGE_SIZE };
 }
 
-// ─── Fetch by task ───────────────────────────────────────────
+// ─── Fetch by task (paginated) ───────────────────────────────
 
 export async function fetchActivitiesByTask(
   uid: string,
-  taskId: string
-): Promise<ActivityDTO[]> {
+  taskId: string,
+  cursor?: QueryDocumentSnapshot<DocumentData> | null
+): Promise<PaginatedActivities> {
   const db = getDb();
   const ref = collection(db, "users", uid, "activities");
-  const q = query(
-    ref,
-    where("taskId", "==", taskId),
-    orderBy("createdAt", "desc")
-  );
+  const q = cursor
+    ? query(ref, where("taskId", "==", taskId), orderBy("createdAt", "desc"), startAfter(cursor), fsLimit(ACTIVITIES_PAGE_SIZE))
+    : query(ref, where("taskId", "==", taskId), orderBy("createdAt", "desc"), fsLimit(ACTIVITIES_PAGE_SIZE));
+
   const snap = await getDocs(q);
-  return snap.docs.map((d) => docToDTO(d.id, d.data() as ActivityDoc));
+  const items = snap.docs.map((d) => docToDTO(d.id, d.data() as ActivityDoc));
+  const lastDoc = snap.docs[snap.docs.length - 1] ?? null;
+
+  return { items, lastDoc, hasMore: snap.docs.length === ACTIVITIES_PAGE_SIZE };
 }
 
 // ─── Create activity (standalone) ────────────────────────────

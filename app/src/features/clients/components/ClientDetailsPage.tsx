@@ -122,7 +122,14 @@ function HeaderSkeleton() {
 // ─── Activity Timeline Tab (replaces old NotesTab) ──────────
 
 function ActivityTimelineTab({ clientId }: { clientId: string }) {
-  const { data: activities, isLoading } = useClientActivities(clientId);
+  const {
+    data,
+    isLoading,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  } = useClientActivities(clientId);
+  const activities = data?.pages.flatMap((p) => p.items);
   const createActivity = useCreateActivity();
   const [content, setContent] = useState("");
 
@@ -172,6 +179,9 @@ function ActivityTimelineTab({ clientId }: { clientId: string }) {
         activities={activities}
         isLoading={isLoading}
         emptyMessage="Brak wpisów. Dodaj pierwszą notatkę powyżej lub wykonaj akcję na zadaniu."
+        hasNextPage={hasNextPage}
+        isFetchingNextPage={isFetchingNextPage}
+        onLoadMore={() => fetchNextPage()}
       />
     </div>
   );

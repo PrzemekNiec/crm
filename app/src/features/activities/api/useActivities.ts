@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/useAuthStore";
 import {
   fetchActivitiesByClient,
@@ -7,28 +7,35 @@ import {
   clientActivitiesQueryKey,
   taskActivitiesQueryKey,
   type CreateActivityPayload,
+  type PaginatedActivities,
 } from "./activities";
 
-// ─── Fetch activities by client ──────────────────────────────
+// ─── Fetch activities by client (paginated) ─────────────────
 
 export function useClientActivities(clientId: string | undefined) {
   const uid = useAuthStore((s) => s.user?.uid);
 
-  return useQuery({
+  return useInfiniteQuery<PaginatedActivities>({
     queryKey: clientActivitiesQueryKey(uid ?? "", clientId ?? ""),
-    queryFn: () => fetchActivitiesByClient(uid!, clientId!),
+    queryFn: ({ pageParam }) =>
+      fetchActivitiesByClient(uid!, clientId!, pageParam as PaginatedActivities["lastDoc"]),
+    initialPageParam: null,
+    getNextPageParam: (lastPage) => (lastPage.hasMore ? lastPage.lastDoc : undefined),
     enabled: !!uid && !!clientId,
   });
 }
 
-// ─── Fetch activities by task ────────────────────────────────
+// ─── Fetch activities by task (paginated) ────────────────────
 
 export function useTaskActivities(taskId: string | undefined) {
   const uid = useAuthStore((s) => s.user?.uid);
 
-  return useQuery({
+  return useInfiniteQuery<PaginatedActivities>({
     queryKey: taskActivitiesQueryKey(uid ?? "", taskId ?? ""),
-    queryFn: () => fetchActivitiesByTask(uid!, taskId!),
+    queryFn: ({ pageParam }) =>
+      fetchActivitiesByTask(uid!, taskId!, pageParam as PaginatedActivities["lastDoc"]),
+    initialPageParam: null,
+    getNextPageParam: (lastPage) => (lastPage.hasMore ? lastPage.lastDoc : undefined),
     enabled: !!uid && !!taskId,
   });
 }
@@ -46,7 +53,6 @@ export function useCreateActivity() {
     },
     onSuccess: (_id, variables) => {
       if (!uid) return;
-      // Invalidate relevant caches
       if (variables.clientId) {
         qc.invalidateQueries({
           queryKey: clientActivitiesQueryKey(uid, variables.clientId),

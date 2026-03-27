@@ -5,6 +5,7 @@ import {
   type ActivityType,
 } from "../types/activity";
 import { GLASS } from "@/lib/glass";
+import { Button } from "@/components/ui/Button";
 
 // ─── Helpers ─────────────────────────────────────────────────
 
@@ -183,12 +184,18 @@ export interface ActivityTimelineProps {
   activities: ActivityDTO[] | undefined;
   isLoading: boolean;
   emptyMessage?: string;
+  hasNextPage?: boolean;
+  isFetchingNextPage?: boolean;
+  onLoadMore?: () => void;
 }
 
 export function ActivityTimeline({
   activities,
   isLoading,
   emptyMessage,
+  hasNextPage,
+  isFetchingNextPage,
+  onLoadMore,
 }: ActivityTimelineProps) {
   if (isLoading) return <TimelineSkeleton />;
 
@@ -201,6 +208,18 @@ export function ActivityTimeline({
       {activities.map((activity) => (
         <ActivityItem key={activity.id} activity={activity} />
       ))}
+
+      {hasNextPage && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mx-auto mt-2 text-muted-foreground"
+          onClick={onLoadMore}
+          disabled={isFetchingNextPage}
+        >
+          {isFetchingNextPage ? "Ładowanie…" : "Załaduj starsze wpisy…"}
+        </Button>
+      )}
     </div>
   );
 }

@@ -52,9 +52,15 @@ interface TaskDetailsSheetProps {
 }
 
 export function TaskDetailsSheet({ task, open, onOpenChange }: TaskDetailsSheetProps) {
-  const { data: activities, isLoading } = useTaskActivities(
-    open && task ? task.id : undefined
-  );
+  const {
+    data,
+    isLoading,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  } = useTaskActivities(open && task ? task.id : undefined);
+
+  const activities = data?.pages.flatMap((p) => p.items);
 
   if (!task) return null;
 
@@ -134,6 +140,9 @@ export function TaskDetailsSheet({ task, open, onOpenChange }: TaskDetailsSheetP
               activities={activities}
               isLoading={isLoading}
               emptyMessage="Brak historii dla tego zadania."
+              hasNextPage={hasNextPage}
+              isFetchingNextPage={isFetchingNextPage}
+              onLoadMore={() => fetchNextPage()}
             />
           </div>
         </div>
