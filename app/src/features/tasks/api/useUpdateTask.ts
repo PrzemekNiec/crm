@@ -5,6 +5,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { getFunctions } from "@/lib/firebase";
 import {
   rescheduleTask,
+  retrySyncTask,
   tasksQueryKey,
   generateGoogleEventId,
 } from "./tasks";
@@ -212,6 +213,56 @@ export function useRescheduleTask() {
     },
     onError: () => {
       toast.error("Nie udało się przełożyć zadania");
+    },
+  });
+}
+
+// ─── Retry calendar sync ─────────────────────────────────────
+
+export interface RetrySyncInput {
+  taskId: string;
+  title: string;
+  description: string;
+  dueDate: string;
+  durationMin: number;
+  googleEventId: string | null;
+  type?: string;
+}
+
+export function useRetrySync() {
+  const uid = useAuthStore((s) => s.user?.uid);
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: RetrySyncInput) => {
+      if (!uid) throw new Error("Brak zalogowanego użytkownika");
+
+      const task = await retrySyncTask(uid, input.taskId);
+
+      const syncFn = httpsCallable(
+        getFunctions(),
+        "syncTaskToGoogleCalendar"
+      );
+      await syncFn({
+        taskId: input.taskId,
+        title: input.title,
+        description: input.description,
+        dueDate: input.dueDate,
+        durationMin: input.durationMin,
+        googleEventId:
+          input.googleEventId || generateGoogleEventId(input.taskId),
+        type: input.type,
+      });
+
+      return task;
+    },
+    onSuccess: () => {
+      if (!uid) return;
+      queryClient.invalidateQueries({ queryKey: tasksQueryKey(uid) });
+      toast.success("Synchronizacja z kalendarzem zakończona pomyślnie");
+    },
+    onError: () => {
+      toast.error("Ponowna synchronizacja nie powiodła się");
     },
   });
 }

@@ -257,6 +257,22 @@ export async function rescheduleTask(
   return snap.exists() ? snap.data() : null;
 }
 
+// ─── Retry sync (reset state to pending) ────────────────────
+
+export async function retrySyncTask(uid: string, taskId: string): Promise<TaskDTO | null> {
+  const db = getDb();
+  const ref = doc(db, "users", uid, "tasks", taskId);
+  await updateDoc(ref, {
+    syncState: "pending",
+    syncRevision: increment(1),
+    syncErrorCode: null,
+    syncErrorMessage: null,
+    updatedAt: serverTimestamp(),
+  });
+  const snap = await getDoc(ref.withConverter(taskConverter));
+  return snap.exists() ? snap.data() : null;
+}
+
 // ─── Cancel task ────────────────────────────────────────────
 
 export async function cancelTask(uid: string, taskId: string): Promise<void> {

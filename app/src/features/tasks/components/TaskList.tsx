@@ -17,14 +17,16 @@ import {
   type TaskType,
   type TaskDTO,
 } from "../types/task";
-import { useRescheduleTask } from "../api/useUpdateTask";
+import { useRescheduleTask, useRetrySync } from "../api/useUpdateTask";
 import { CompleteTaskDialog, CancelTaskDialog } from "./TaskActionDialogs";
 import { TaskDetailsSheet } from "./TaskDetailsSheet";
 import {
+  AlertTriangle,
   Briefcase,
   Calendar,
   Check,
   Clock,
+  RefreshCw,
   User,
   X,
 } from "lucide-react";
@@ -70,17 +72,31 @@ function formatTime(iso: string): string {
   });
 }
 
-function syncBadge(state: string) {
-  switch (state) {
+function syncBadge(task: TaskDTO) {
+  switch (task.syncState) {
     case "synced":
       return <Badge variant="success">Zsynchronizowane</Badge>;
     case "pending":
       return <Badge variant="warning">Oczekuje</Badge>;
     case "failed":
-      return <Badge variant="destructive">Błąd synchronizacji</Badge>;
+      return (
+        <span
+          className="inline-flex items-center gap-1"
+          title={task.syncErrorMessage || "Błąd synchronizacji z kalendarzem"}
+        >
+          <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
+          <Badge variant="destructive">Błąd synchronizacji</Badge>
+        </span>
+      );
     case "reauth_required":
       return (
-        <Badge variant="destructive">Wymagana ponowna autoryzacja</Badge>
+        <span
+          className="inline-flex items-center gap-1"
+          title="Token wygasł — wymagane ponowne połączenie z Google Calendar"
+        >
+          <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
+          <Badge variant="destructive">Wymagana ponowna autoryzacja</Badge>
+        </span>
       );
     default:
       return null;
@@ -201,12 +217,39 @@ export function TaskActions({ task }: { task: TaskDTO }) {
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [completeOpen, setCompleteOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const retrySync = useRetrySync();
 
   const isDone = task.status === "done" || task.status === "cancelled" || task.status === "system_cancelled";
+  const showRetry =
+    task.syncToGoogleCalendar &&
+    (task.syncState === "failed" || task.syncState === "reauth_required");
 
   return (
     <>
       <div className="flex items-center gap-1.5">
+        {/* Retry sync — orange */}
+        {showRetry && (
+          <button
+            type="button"
+            onClick={() =>
+              retrySync.mutate({
+                taskId: task.id,
+                title: task.title,
+                description: task.description,
+                dueDate: task.dueDate ?? "",
+                durationMin: task.durationMin,
+                googleEventId: task.googleEventId,
+                type: task.type,
+              })
+            }
+            disabled={retrySync.isPending}
+            title="Spróbuj ponownie zsynchronizować z kalendarzem"
+            className="flex h-7 w-7 items-center justify-center rounded-full border border-orange-500/40 text-orange-500 transition-all hover:bg-orange-500 hover:text-white cursor-pointer disabled:opacity-50"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${retrySync.isPending ? "animate-spin" : ""}`} />
+          </button>
+        )}
+
         {/* Complete — green */}
         {!isDone && (
           <button
@@ -404,7 +447,7 @@ export function TaskList({ tasks, isLoading, tab }: TaskListProps) {
                     <Clock className="h-3 w-3" />
                     {task.durationMin} minut
                   </span>
-                  {task.syncToGoogleCalendar && syncBadge(task.syncState)}
+                  {task.syncToGoogleCalendar && syncBadge(task)}
                 </div>
               </div>
 
