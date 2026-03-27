@@ -96,6 +96,9 @@ const dealConverter: FirestoreDataConverter<DealDTO> = {
       // Rejection fields
       isRejected: d.isRejected ?? false,
       rejectionReason: d.rejectionReason ?? undefined,
+      stageUpdatedAt: d.stageUpdatedAt?.toDate?.()
+        ? d.stageUpdatedAt.toDate().toISOString()
+        : undefined,
     };
   },
 };
@@ -137,6 +140,7 @@ export async function createDeal(
     stage,
     isRegisteredInCP: false,
     history: [{ stage, timestamp: now }],
+    stageUpdatedAt: serverTimestamp(),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
@@ -157,6 +161,7 @@ export async function updateDealStage(
   await updateDoc(ref, {
     stage,
     history: arrayUnion({ stage, timestamp: now }),
+    stageUpdatedAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
 }

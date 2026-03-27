@@ -92,4 +92,5 @@ export interface DealDTO {
   // Rejection fields
   isRejected?: boolean;
   rejectionReason?: string;
+  stageUpdatedAt?: string; // ISO — when the deal last changed stage
 }

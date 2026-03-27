@@ -48,8 +48,11 @@ import {
   Archive,
   XCircle,
   Eye,
+  Hourglass,
   Send,
 } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { pl } from "date-fns/locale";
 import { cn } from "@/lib/cn";
 import { GLASS, GLASS_CARD } from "@/lib/glass";
 import { useForm } from "react-hook-form";
@@ -962,7 +965,9 @@ function DealCard({
     if (uid) {
       qc.setQueryData<DealDTO[]>(dealsQueryKey(uid), (old) =>
         old?.map((d) =>
-          d.id === deal.id ? { ...d, stage: newStage } : d
+          d.id === deal.id
+            ? { ...d, stage: newStage, stageUpdatedAt: new Date().toISOString() }
+            : d
         )
       );
     }
@@ -1128,9 +1133,17 @@ function DealCard({
           <ChevronLeft className="h-3.5 w-3.5" />
         </button>
 
-        <span className="text-[9px] text-muted-foreground/60 font-medium">
-          {DEAL_STAGE_LABELS[deal.stage]}
-        </span>
+        <div className="flex flex-col items-center gap-0.5">
+          <span className="text-[9px] text-muted-foreground/60 font-medium">
+            {DEAL_STAGE_LABELS[deal.stage]}
+          </span>
+          {deal.stageUpdatedAt && (
+            <span className="flex items-center gap-0.5 text-[9px] text-muted-foreground/40">
+              <Hourglass className="h-2.5 w-2.5" />
+              {formatDistanceToNow(new Date(deal.stageUpdatedAt), { locale: pl })}
+            </span>
+          )}
+        </div>
 
         <button
           type="button"
