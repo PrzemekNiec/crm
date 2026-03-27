@@ -217,7 +217,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
                 left: pos.left,
                 width: pos.width,
               }}
-              className="z-[9999] max-h-60 overflow-auto rounded-md border border-border bg-[#1e2329] py-1 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.6)]"
+              className="z-[9999] max-h-60 overflow-auto rounded-md border border-border bg-popover py-1 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.3)]"
             >
               {options.map((opt) => {
                 const isSelected = opt.value === currentValue;
@@ -230,8 +230,8 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
                     className={cn(
                       "flex cursor-pointer items-center gap-2 px-3 py-2 text-sm transition-colors",
                       isSelected
-                        ? "bg-primary font-bold text-primary-foreground shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]"
-                        : "text-[#f0f4f8] hover:bg-primary/70 hover:text-white"
+                        ? "bg-primary font-bold text-primary-foreground"
+                        : "text-popover-foreground hover:bg-primary/15 hover:text-foreground"
                     )}
                   >
                     {isSelected && <Check className="h-3.5 w-3.5 shrink-0" />}
