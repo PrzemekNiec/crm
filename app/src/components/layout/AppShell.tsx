@@ -6,6 +6,7 @@ import { useNetworkState } from "@/hooks/useNetworkState";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useTheme } from "@/lib/useTheme";
 import { Sidebar, MOBILE_NAV_ITEMS } from "./Sidebar";
+import { MobileFAB } from "./MobileFAB";
 import { cn } from "@/lib/cn";
 import { WifiOff } from "lucide-react";
 
@@ -189,7 +190,8 @@ export function AppShell() {
         </div>
       </div>
 
-      {/* Mobile bottom navigation */}
+      {/* Mobile FAB + bottom navigation */}
+      <MobileFAB />
       <MobileBottomNav />
     </div>
   );

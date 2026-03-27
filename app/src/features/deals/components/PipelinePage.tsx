@@ -1608,7 +1608,7 @@ function SettleDealModal({
 
 // ─── Add deal dialog ─────────────────────────────────────────
 
-function AddDealDialog({
+export function AddDealDialog({
   open,
   onOpenChange,
 }: {
