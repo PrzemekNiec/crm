@@ -31,6 +31,22 @@
         { "fieldPath": "taskId", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "clients",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "phone", "order": "ASCENDING" },
+        { "fieldPath": "softDeleted", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "clients",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "email", "order": "ASCENDING" },
+        { "fieldPath": "softDeleted", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

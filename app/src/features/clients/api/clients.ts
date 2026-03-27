@@ -19,6 +19,61 @@ import {
 import { getDb } from "@/lib/firebase";
 import type { ClientFormValues } from "../types/client";
 
+// ─── Phone normalization ─────────────────────────────────────
+
+/** Strip spaces, dashes, dots, parens — keep leading '+' and digits only. */
+export function normalizePhone(raw: string): string {
+  return raw.replace(/[^\d+]/g, "");
+}
+
+// ─── Duplicate check ────────────────────────────────────────
+
+export interface DuplicateMatch {
+  id: string;
+  fullName: string;
+  field: "phone" | "email";
+}
+
+/**
+ * Check if a client with the same phone or email already exists.
+ * Pass `excludeId` when editing to skip the client being edited.
+ */
+export async function checkDuplicate(
+  uid: string,
+  phone: string,
+  email: string,
+  excludeId?: string
+): Promise<DuplicateMatch | null> {
+  const db = getDb();
+  const ref = collection(db, "users", uid, "clients");
+  const normalizedPhone = normalizePhone(phone);
+
+  // Check phone (if non-empty)
+  if (normalizedPhone) {
+    const q = query(ref, where("phone", "==", normalizedPhone), where("softDeleted", "==", false));
+    const snap = await getDocs(q);
+    for (const d of snap.docs) {
+      if (d.id !== excludeId) {
+        return { id: d.id, fullName: (d.data() as { fullName: string }).fullName, field: "phone" };
+      }
+    }
+  }
+
+  // Check email (if non-empty)
+  const trimmedEmail = email.trim().toLowerCase();
+  if (trimmedEmail) {
+    const q = query(ref, where("email", "==", trimmedEmail), where("softDeleted", "==", false));
+    const snap = await getDocs(q);
+    for (const d of snap.docs) {
+      if (d.id !== excludeId) {
+        return { id: d.id, fullName: (d.data() as { fullName: string }).fullName, field: "email" };
+      }
+    }
+  }
+
+  return null;
+}
+
 // ─── Timestamp → ISO string helper ──────────────────────────
 
 function timestampToISO(ts: Timestamp | null | undefined): string | null {
@@ -188,6 +243,9 @@ export async function createClient(
   for (const [k, v] of Object.entries(values)) {
     if (v !== undefined) clean[k] = v;
   }
+  // Normalize phone & email before save
+  if (typeof clean.phone === "string") clean.phone = normalizePhone(clean.phone as string);
+  if (typeof clean.email === "string") clean.email = (clean.email as string).trim().toLowerCase();
 
   const docRef = await addDoc(ref, {
     ...clean,
@@ -218,6 +276,9 @@ export async function updateClient(
   for (const [k, v] of Object.entries(values)) {
     if (v !== undefined) clean[k] = v;
   }
+  // Normalize phone & email before save
+  if (typeof clean.phone === "string") clean.phone = normalizePhone(clean.phone as string);
+  if (typeof clean.email === "string") clean.email = (clean.email as string).trim().toLowerCase();
 
   if (clean.fullName) {
     const batch = writeBatch(db);

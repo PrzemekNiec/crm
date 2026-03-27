@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -13,8 +13,11 @@ import { Select } from "@/components/ui/Select";
 import { Label } from "@/components/ui/Label";
 import { Button } from "@/components/ui/Button";
 import { toast } from "@/components/ui/Toast";
+import { AlertTriangle } from "lucide-react";
 import { useUpdateClient } from "../api/useUpdateClient";
+import { checkDuplicate, type DuplicateMatch } from "../api/clients";
 import type { ClientDTO } from "../api/clients";
+import { useAuthStore } from "@/store/useAuthStore";
 import {
   clientFormSchema,
   CLIENT_STAGES,
@@ -48,7 +51,10 @@ export function EditClientDialog({
   open,
   onOpenChange,
 }: EditClientDialogProps) {
+  const uid = useAuthStore((s) => s.user?.uid);
   const update = useUpdateClient(client?.id);
+  const [duplicate, setDuplicate] = useState<DuplicateMatch | null>(null);
+  const [checking, setChecking] = useState(false);
 
   const {
     register,
@@ -101,10 +107,26 @@ export function EditClientDialog({
 
   const source = watch("source");
 
-  const onSubmit = (values: ClientFormValues) => {
+  const onSubmit = async (values: ClientFormValues) => {
+    if (!uid || !client) return;
+    setDuplicate(null);
+    setChecking(true);
+    try {
+      const dup = await checkDuplicate(uid, values.phone ?? "", values.email ?? "", client.id);
+      if (dup) {
+        setDuplicate(dup);
+        setChecking(false);
+        return;
+      }
+    } catch {
+      // If check fails, proceed with save
+    }
+    setChecking(false);
+
     update.mutate(values, {
       onSuccess: () => {
         toast.success("Dane klienta zostały zaktualizowane");
+        setDuplicate(null);
         onOpenChange(false);
       },
       onError: () => {
@@ -129,6 +151,21 @@ export function EditClientDialog({
       </DialogHeader>
 
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+        {/* Duplicate alert */}
+        {duplicate && (
+          <div className="flex items-start gap-3 rounded-lg border border-red-500/40 bg-red-500/10 p-3">
+            <AlertTriangle className="h-5 w-5 shrink-0 text-red-500 mt-0.5" />
+            <div className="text-sm">
+              <p className="font-medium text-red-400">
+                Klient o tym {duplicate.field === "phone" ? "numerze telefonu" : "adresie e-mail"} już istnieje w bazie.
+              </p>
+              <p className="mt-1 text-muted-foreground">
+                Istniejący klient: <span className="font-semibold text-foreground">{duplicate.fullName}</span>
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Source */}
         <div className="flex flex-col gap-2">
           <Label>Źródło klienta</Label>
@@ -276,8 +313,8 @@ export function EditClientDialog({
           >
             Anuluj
           </Button>
-          <Button type="submit" disabled={update.isPending}>
-            {update.isPending ? "Zapisywanie…" : "Zapisz zmiany"}
+          <Button type="submit" disabled={update.isPending || checking}>
+            {checking ? "Sprawdzanie…" : update.isPending ? "Zapisywanie…" : "Zapisz zmiany"}
           </Button>
         </DialogFooter>
       </form>
