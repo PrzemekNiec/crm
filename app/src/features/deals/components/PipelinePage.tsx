@@ -50,8 +50,10 @@ import {
   Eye,
   Hourglass,
   Send,
+  Download,
 } from "lucide-react";
 import { formatDistanceToNow, addMonths } from "date-fns";
+import { downloadCSV } from "@/lib/csv";
 import { pl } from "date-fns/locale";
 import { cn } from "@/lib/cn";
 import { toast } from "@/components/ui/Toast";
@@ -447,6 +449,33 @@ function ArchivedDealsTable({ deals }: { deals: DealDTO[] }) {
 
   const hasContent = sortedMonths.length > 0 || rejected.length > 0;
 
+  const handleExportCSV = () => {
+    const visibleDeals = sortedMonths.flatMap((m) => grouped[m]);
+    if (visibleDeals.length === 0) return;
+
+    const rows = visibleDeals.map((d) => ({
+      client: d.clientName ?? "—",
+      title: d.title,
+      value: d.value,
+      bank: d.bank ?? "",
+      commissionRate: d.commissionRate != null ? `${d.commissionRate}%` : "",
+      commissionValue: d.commissionValue ?? "",
+      payoutDate: d.payoutDate ?? "",
+    }));
+
+    const columns = [
+      { key: "client", label: "Klient" },
+      { key: "title", label: "Nazwa" },
+      { key: "value", label: "Kwota" },
+      { key: "bank", label: "Bank" },
+      { key: "commissionRate", label: "Stawka %" },
+      { key: "commissionValue", label: "Prowizja" },
+      { key: "payoutDate", label: "Miesiąc wypłaty" },
+    ];
+
+    downloadCSV(rows, columns, `archiwum_wyplat_${selectedYear}.csv`);
+  };
+
   if (archived.length === 0) return null;
 
   return (
@@ -465,17 +494,28 @@ function ArchivedDealsTable({ deals }: { deals: DealDTO[] }) {
             </span>
           )}
         </h2>
-        <select
-          value={selectedYear}
-          onChange={(e) => setSelectedYear(Number(e.target.value))}
-          className="rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
-        >
-          {years.map((y) => (
-            <option key={y} value={y}>
-              {y}
-            </option>
-          ))}
-        </select>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportCSV}
+            disabled={sortedMonths.length === 0}
+          >
+            <Download className="h-4 w-4" />
+            <span className="hidden sm:inline">CSV</span>
+          </Button>
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
+            className="rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+          >
+            {years.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {!hasContent ? (
