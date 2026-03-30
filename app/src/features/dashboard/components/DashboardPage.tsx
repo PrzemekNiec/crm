@@ -6,6 +6,7 @@ import { useLeads } from "@/features/leads/api/useLeads";
 import { useDeals } from "@/features/deals/api/useDeals";
 import { useGoogleIntegration } from "../hooks/useGoogleIntegration";
 import { DailyNote } from "./DailyNote";
+import { CommissionChart } from "./CommissionChart";
 import { useCalendarAuth } from "@/features/calendar/hooks/useCalendarAuth";
 import { useCompleteTask, useRescheduleTask } from "@/features/tasks/api/useUpdateTask";
 import { useDeleteTask } from "@/features/tasks/api/useDeleteTask";
@@ -662,6 +663,9 @@ export function DashboardPage() {
         selectedMonth={finMonth}
         onMonthChange={setFinMonth}
       />
+
+      {/* Commission Chart */}
+      <CommissionChart deals={deals} />
 
       {/* Task Stats */}
       <StatsCards
