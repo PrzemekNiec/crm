@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { Plus, Zap, Users, Briefcase, CheckSquare, X } from "lucide-react";
+import { Plus, Zap, Users, CheckSquare, X } from "lucide-react";
 import { CreateLeadDialog } from "@/features/leads/components/CreateLeadDialog";
 import { CreateClientDialog } from "@/features/clients/components/CreateClientDialog";
-import { AddDealDialog } from "@/features/deals/components/AddDealDialog";
 import { CreateTaskDialog } from "@/features/tasks/components/CreateTaskDialog";
 
 // ─── Speed-dial action items ─────────────────────────────────
@@ -20,13 +19,7 @@ const ACTIONS = [
     icon: Users,
     color: "bg-blue-500 text-white",
   },
-  {
-    key: "deal" as const,
-    label: "Nowa Szansa",
-    icon: Briefcase,
-    color: "bg-violet-500 text-white",
-  },
-  {
+{
     key: "task" as const,
     label: "Nowe Zadanie",
     icon: CheckSquare,
@@ -103,11 +96,7 @@ export function MobileFAB() {
         open={openDialog === "client"}
         onOpenChange={(v) => !v && setOpenDialog(null)}
       />
-      <AddDealDialog
-        open={openDialog === "deal"}
-        onOpenChange={(v) => !v && setOpenDialog(null)}
-      />
-      <CreateTaskDialog
+<CreateTaskDialog
         open={openDialog === "task"}
         onOpenChange={(v) => !v && setOpenDialog(null)}
       />

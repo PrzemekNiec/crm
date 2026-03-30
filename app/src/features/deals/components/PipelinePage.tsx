@@ -713,7 +713,7 @@ function RejectedRow({
       <td className="px-4 py-2.5 text-muted-foreground text-xs">
         {clientSource}
       </td>
-      <td className="px-4 py-2.5 text-xs max-w-[300px]">
+      <td className="px-4 py-2.5 text-xs max-w-[300px] overflow-hidden">
         {editing ? (
           <textarea
             ref={ref}
@@ -728,10 +728,11 @@ function RejectedRow({
           />
         ) : (
           <span
-            className="text-red-400 cursor-pointer group inline-flex items-center gap-1 hover:text-red-300 transition-colors"
+            className="text-red-400 cursor-pointer group inline-flex items-center gap-1 hover:text-red-300 transition-colors max-w-full"
             onClick={startEdit}
+            title={deal.rejectionReason || deal.notes || undefined}
           >
-            <span className="truncate">
+            <span className="truncate block max-w-[260px]">
               {deal.rejectionReason || deal.notes || "Brak powodu"}
             </span>
             <Pencil className="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -897,7 +898,7 @@ function ArchiveRow({
           clientInfo?.sourceLabel ?? "—"
         )}
       </td>
-      <td className="px-4 py-2.5 text-muted-foreground text-xs max-w-[250px]">
+      <td className="px-4 py-2.5 text-muted-foreground text-xs max-w-[250px] overflow-hidden">
         {editingNotes ? (
           <textarea
             ref={notesRef}
@@ -912,13 +913,14 @@ function ArchiveRow({
           />
         ) : (
           <span
-            className="cursor-pointer group inline-flex items-center gap-1 hover:text-foreground transition-colors"
+            className="cursor-pointer group inline-flex items-center gap-1 hover:text-foreground transition-colors max-w-full"
             onClick={startEditNotes}
+            title={deal.isRejected && deal.rejectionReason ? deal.rejectionReason : deal.notes || undefined}
           >
             {deal.isRejected && deal.rejectionReason ? (
-              <span className="text-red-400 truncate">{deal.rejectionReason}</span>
+              <span className="text-red-400 truncate block max-w-[200px]">{deal.rejectionReason}</span>
             ) : (
-              <span className="truncate">{deal.notes || "—"}</span>
+              <span className="truncate block max-w-[200px]">{deal.notes || "—"}</span>
             )}
             <Pencil className="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
           </span>
