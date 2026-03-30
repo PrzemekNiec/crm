@@ -87,7 +87,11 @@ export function DailyNote() {
   if (!uid) return null;
 
   return (
-    <section className="rounded-xl border border-[var(--surface-8)] bg-[var(--surface-4)] backdrop-blur-xl p-4">
+    <section className={`rounded-xl border backdrop-blur-xl p-4 ${
+      text.trim()
+        ? "border-red-500/60 bg-red-500/5 animate-pulse"
+        : "border-[var(--surface-8)] bg-[var(--surface-4)]"
+    }`}>
       <div className="flex items-center justify-between mb-2">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <StickyNote className="h-4 w-4 text-amber-400" />

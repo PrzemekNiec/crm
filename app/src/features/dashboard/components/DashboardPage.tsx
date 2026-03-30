@@ -664,9 +664,6 @@ export function DashboardPage() {
         onMonthChange={setFinMonth}
       />
 
-      {/* Commission Chart */}
-      <CommissionChart deals={deals} />
-
       {/* Task Stats */}
       <StatsCards
         todayCount={todayTasks.length}
@@ -706,6 +703,9 @@ export function DashboardPage() {
           <NewLeadsSection leads={newLeads} />
         )}
       </section>
+
+      {/* Commission Chart */}
+      <CommissionChart deals={deals} />
 
       {/* Recent Activity */}
       <RecentActivity deals={deals} tasks={tasks} />
