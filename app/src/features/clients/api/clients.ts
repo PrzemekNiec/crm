@@ -32,6 +32,7 @@ export interface DuplicateMatch {
   id: string;
   fullName: string;
   field: "phone" | "email";
+  source: "client" | "lead";
 }
 
 /**
@@ -45,28 +46,36 @@ export async function checkDuplicate(
   excludeId?: string
 ): Promise<DuplicateMatch | null> {
   const db = getDb();
-  const ref = collection(db, "users", uid, "clients");
+  const clientsRef = collection(db, "users", uid, "clients");
+  const leadsRef = collection(db, "users", uid, "leads");
   const normalizedPhone = normalizePhone(phone);
 
-  // Check phone (if non-empty)
+  // Check phone in clients AND leads in parallel
   if (normalizedPhone) {
-    const q = query(ref, where("phone", "==", normalizedPhone), where("softDeleted", "==", false));
-    const snap = await getDocs(q);
-    for (const d of snap.docs) {
+    const [clientSnap, leadSnap] = await Promise.all([
+      getDocs(query(clientsRef, where("phone", "==", normalizedPhone), where("softDeleted", "==", false))),
+      getDocs(query(leadsRef, where("phone", "==", normalizedPhone), where("softDeleted", "==", false))),
+    ]);
+    for (const d of clientSnap.docs) {
       if (d.id !== excludeId) {
-        return { id: d.id, fullName: (d.data() as { fullName: string }).fullName, field: "phone" };
+        return { id: d.id, fullName: (d.data() as { fullName: string }).fullName, field: "phone", source: "client" };
+      }
+    }
+    for (const d of leadSnap.docs) {
+      if (d.id !== excludeId) {
+        return { id: d.id, fullName: (d.data() as { fullName: string }).fullName, field: "phone", source: "lead" };
       }
     }
   }
 
-  // Check email (if non-empty)
+  // Check email in clients only (leads don't have email)
   const trimmedEmail = email.trim().toLowerCase();
   if (trimmedEmail) {
-    const q = query(ref, where("email", "==", trimmedEmail), where("softDeleted", "==", false));
+    const q = query(clientsRef, where("email", "==", trimmedEmail), where("softDeleted", "==", false));
     const snap = await getDocs(q);
     for (const d of snap.docs) {
       if (d.id !== excludeId) {
-        return { id: d.id, fullName: (d.data() as { fullName: string }).fullName, field: "email" };
+        return { id: d.id, fullName: (d.data() as { fullName: string }).fullName, field: "email", source: "client" };
       }
     }
   }
