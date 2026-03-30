@@ -5,6 +5,7 @@ import { useTasks } from "@/features/tasks/api/useTasks";
 import { useLeads } from "@/features/leads/api/useLeads";
 import { useDeals } from "@/features/deals/api/useDeals";
 import { useGoogleIntegration } from "../hooks/useGoogleIntegration";
+import { DailyNote } from "./DailyNote";
 import { useCalendarAuth } from "@/features/calendar/hooks/useCalendarAuth";
 import { useCompleteTask, useRescheduleTask } from "@/features/tasks/api/useUpdateTask";
 import { useDeleteTask } from "@/features/tasks/api/useDeleteTask";
@@ -648,6 +649,9 @@ export function DashboardPage() {
           })}
         </p>
       </header>
+
+      {/* Daily Note */}
+      <DailyNote />
 
       {/* Reauth Banner */}
       <ReauthBanner />
