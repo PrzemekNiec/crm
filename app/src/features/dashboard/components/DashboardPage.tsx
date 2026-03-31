@@ -582,7 +582,7 @@ function NewLeadsSection({ leads }: { leads: LeadDTO[] }) {
           </div>
           <div className="flex-1 min-w-0">
             <h4 className="truncate text-sm font-medium text-foreground">
-              {lead.fullName}
+              {lead.firstName} {lead.lastName}
             </h4>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               {lead.phone && (

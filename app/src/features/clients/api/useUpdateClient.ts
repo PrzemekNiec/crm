@@ -19,7 +19,7 @@ export function useUpdateClient(clientId: string | undefined) {
         qc.invalidateQueries({ queryKey: clientQueryKey(id, clientId) });
       }
       // When name changed, refresh deals & tasks with updated clientName
-      if (values.fullName) {
+      if (values.firstName || values.lastName) {
         qc.invalidateQueries({ queryKey: dealsQueryKey(id) });
         qc.invalidateQueries({ queryKey: tasksQueryKey(id) });
       }

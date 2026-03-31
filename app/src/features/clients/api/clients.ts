@@ -17,7 +17,21 @@ import {
   type Timestamp,
 } from "firebase/firestore";
 import { getDb } from "@/lib/firebase";
+import { splitFullName, joinName } from "@/lib/format";
 import type { ClientFormValues } from "../types/client";
+
+// ─── Dual-read helper (migration) ───────────────────────────
+
+/** Extract firstName/lastName from a Firestore doc, with fallback to fullName. */
+function extractNames(data: Record<string, unknown>): { firstName: string; lastName: string } {
+  if (typeof data.firstName === "string" && typeof data.lastName === "string") {
+    return { firstName: data.firstName, lastName: data.lastName };
+  }
+  if (typeof data.fullName === "string") {
+    return splitFullName(data.fullName);
+  }
+  return { firstName: "", lastName: "" };
+}
 
 // ─── Phone normalization ─────────────────────────────────────
 
@@ -30,7 +44,8 @@ export function normalizePhone(raw: string): string {
 
 export interface DuplicateMatch {
   id: string;
-  fullName: string;
+  firstName: string;
+  lastName: string;
   field: "phone" | "email";
   source: "client" | "lead";
 }
@@ -58,12 +73,16 @@ export async function checkDuplicate(
     ]);
     for (const d of clientSnap.docs) {
       if (d.id !== excludeId) {
-        return { id: d.id, fullName: (d.data() as { fullName: string }).fullName, field: "phone", source: "client" };
+        const data = d.data() as Record<string, unknown>;
+        const { firstName, lastName } = extractNames(data);
+        return { id: d.id, firstName, lastName, field: "phone", source: "client" };
       }
     }
     for (const d of leadSnap.docs) {
       if (d.id !== excludeId) {
-        return { id: d.id, fullName: (d.data() as { fullName: string }).fullName, field: "phone", source: "lead" };
+        const data = d.data() as Record<string, unknown>;
+        const { firstName, lastName } = extractNames(data);
+        return { id: d.id, firstName, lastName, field: "phone", source: "lead" };
       }
     }
   }
@@ -75,7 +94,9 @@ export async function checkDuplicate(
     const snap = await getDocs(q);
     for (const d of snap.docs) {
       if (d.id !== excludeId) {
-        return { id: d.id, fullName: (d.data() as { fullName: string }).fullName, field: "email", source: "client" };
+        const data = d.data() as Record<string, unknown>;
+        const { firstName, lastName } = extractNames(data);
+        return { id: d.id, firstName, lastName, field: "email", source: "client" };
       }
     }
   }
@@ -93,7 +114,9 @@ function timestampToISO(ts: Timestamp | null | undefined): string | null {
 // ─── Raw Firestore document shape ────────────────────────────
 
 interface ClientDoc {
-  fullName: string;
+  firstName?: string;
+  lastName?: string;
+  fullName?: string; // legacy — dual-read migration
   phone?: string;
   email?: string;
   preferredContactChannel?: string;
@@ -126,7 +149,8 @@ interface ClientDoc {
 /** Frontend-safe shape — timestamps are ISO strings. */
 export interface ClientDTO {
   id: string;
-  fullName: string;
+  firstName: string;
+  lastName: string;
   phone: string;
   email: string;
   preferredContactChannel?: string;
@@ -167,9 +191,11 @@ export const clientConverter: FirestoreDataConverter<ClientDTO> = {
     options?: SnapshotOptions
   ): ClientDTO {
     const d = snapshot.data(options) as ClientDoc;
+    const names = extractNames(d as unknown as Record<string, unknown>);
     return {
       id: snapshot.id,
-      fullName: d.fullName,
+      firstName: names.firstName,
+      lastName: names.lastName,
       phone: d.phone ?? "",
       email: d.email ?? "",
       preferredContactChannel: d.preferredContactChannel,
@@ -256,6 +282,11 @@ export async function createClient(
   if (typeof clean.phone === "string") clean.phone = normalizePhone(clean.phone as string);
   if (typeof clean.email === "string") clean.email = (clean.email as string).trim().toLowerCase();
 
+  // Dual-write: store firstName + lastName + computed fullName for backward compat
+  if (typeof clean.firstName === "string" && typeof clean.lastName === "string") {
+    clean.fullName = joinName(clean.firstName as string, clean.lastName as string);
+  }
+
   const docRef = await addDoc(ref, {
     ...clean,
     lastContactAt: null,
@@ -289,27 +320,50 @@ export async function updateClient(
   if (typeof clean.phone === "string") clean.phone = normalizePhone(clean.phone as string);
   if (typeof clean.email === "string") clean.email = (clean.email as string).trim().toLowerCase();
 
-  if (clean.fullName) {
-    const batch = writeBatch(db);
-    batch.update(ref, clean);
+  // Dual-write: keep fullName in sync
+  if (typeof clean.firstName === "string" || typeof clean.lastName === "string") {
+    // Need both names for computed fullName — read current if only one changed
+    const fn = (clean.firstName as string | undefined) ?? undefined;
+    const ln = (clean.lastName as string | undefined) ?? undefined;
+    if (fn !== undefined || ln !== undefined) {
+      // If we don't have both, fetch current values
+      let currentFirst = fn;
+      let currentLast = ln;
+      if (currentFirst === undefined || currentLast === undefined) {
+        const currentSnap = await getDoc(ref);
+        if (currentSnap.exists()) {
+          const current = currentSnap.data() as Record<string, unknown>;
+          const currentNames = extractNames(current);
+          if (currentFirst === undefined) currentFirst = currentNames.firstName;
+          if (currentLast === undefined) currentLast = currentNames.lastName;
+        }
+      }
+      const computedFullName = joinName(currentFirst ?? "", currentLast ?? "");
+      clean.fullName = computedFullName;
 
-    // Propagate to deals
-    const dealsSnap = await getDocs(
-      query(collection(db, "users", uid, "deals"), where("clientId", "==", clientId))
-    );
-    for (const d of dealsSnap.docs) {
-      batch.update(d.ref, { clientName: clean.fullName });
+      const batch = writeBatch(db);
+      batch.update(ref, clean);
+
+      // Propagate to deals
+      const dealsSnap = await getDocs(
+        query(collection(db, "users", uid, "deals"), where("clientId", "==", clientId))
+      );
+      for (const d of dealsSnap.docs) {
+        batch.update(d.ref, { clientName: computedFullName });
+      }
+
+      // Propagate to tasks
+      const tasksSnap = await getDocs(
+        query(collection(db, "users", uid, "tasks"), where("clientId", "==", clientId))
+      );
+      for (const t of tasksSnap.docs) {
+        batch.update(t.ref, { clientName: computedFullName });
+      }
+
+      await batch.commit();
+    } else {
+      await updateDoc(ref, clean);
     }
-
-    // Propagate to tasks
-    const tasksSnap = await getDocs(
-      query(collection(db, "users", uid, "tasks"), where("clientId", "==", clientId))
-    );
-    for (const t of tasksSnap.docs) {
-      batch.update(t.ref, { clientName: clean.fullName });
-    }
-
-    await batch.commit();
   } else {
     await updateDoc(ref, clean);
   }

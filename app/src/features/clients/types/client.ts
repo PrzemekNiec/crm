@@ -107,10 +107,14 @@ const emptyToUndefined = (v: unknown) =>
 
 export const clientFormSchema = z
   .object({
-    fullName: z
+    firstName: z
       .string()
-      .min(2, "Imię i nazwisko musi mieć co najmniej 2 znaki")
-      .max(120, "Maksymalnie 120 znaków"),
+      .min(1, "Imię jest wymagane")
+      .max(60, "Maksymalnie 60 znaków"),
+    lastName: z
+      .string()
+      .min(1, "Nazwisko jest wymagane")
+      .max(60, "Maksymalnie 60 znaków"),
     phone: z.string().max(20),
     email: z.string().email("Nieprawidłowy adres e-mail").or(z.literal("")),
     preferredContactChannel: z.enum(CONTACT_CHANNELS).optional(),

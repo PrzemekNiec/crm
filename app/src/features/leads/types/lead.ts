@@ -22,10 +22,14 @@ export const LOSS_REASONS = [
 // ─── Zod schema: quick add form ─────────────────────────────
 
 export const leadFormSchema = z.object({
-  fullName: z
+  firstName: z
     .string()
-    .min(2, "Imię i nazwisko musi mieć co najmniej 2 znaki")
-    .max(120, "Maksymalnie 120 znaków"),
+    .min(1, "Imię jest wymagane")
+    .max(60, "Maksymalnie 60 znaków"),
+  lastName: z
+    .string()
+    .min(1, "Nazwisko jest wymagane")
+    .max(60, "Maksymalnie 60 znaków"),
   estimatedAmount: z.coerce.number().nonnegative().optional(),
   phone: z.string().max(20).optional(),
 });

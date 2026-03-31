@@ -92,14 +92,15 @@ export function GlobalSearch() {
 
     // Clients
     for (const c of clients) {
+      const cName = `${c.firstName} ${c.lastName}`;
       if (
-        c.fullName.toLowerCase().includes(q) ||
+        cName.toLowerCase().includes(q) ||
         c.phone?.toLowerCase().includes(q) ||
         c.email?.toLowerCase().includes(q)
       ) {
         matches.push({
           id: `client-${c.id}`,
-          label: c.fullName,
+          label: cName,
           sublabel: [c.phone, c.email].filter(Boolean).join(" · "),
           category: "client",
           route: `/clients/${c.id}`,
@@ -110,13 +111,14 @@ export function GlobalSearch() {
 
     // Leads
     for (const l of leads) {
+      const lName = `${l.firstName} ${l.lastName}`;
       if (
-        l.fullName.toLowerCase().includes(q) ||
+        lName.toLowerCase().includes(q) ||
         l.phone?.toLowerCase().includes(q)
       ) {
         matches.push({
           id: `lead-${l.id}`,
-          label: l.fullName,
+          label: lName,
           sublabel: l.phone || undefined,
           category: "lead",
           route: "/leads",

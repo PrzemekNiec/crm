@@ -81,7 +81,8 @@ export function ClientList({ searchQuery }: ClientListProps) {
     const q = searchQuery.toLowerCase();
     return clients.filter(
       (c: ClientDTO) =>
-        c.fullName.toLowerCase().includes(q) ||
+        c.firstName.toLowerCase().includes(q) ||
+        c.lastName.toLowerCase().includes(q) ||
         c.phone.toLowerCase().includes(q) ||
         c.email.toLowerCase().includes(q)
     );
@@ -160,7 +161,7 @@ export function ClientList({ searchQuery }: ClientListProps) {
                 className="transition-colors hover:bg-[var(--surface-5)] cursor-pointer"
               >
                 <td className="px-4 py-3 font-medium text-foreground">
-                  {client.fullName}
+                  {client.firstName} {client.lastName}
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-col gap-0.5 text-muted-foreground">
@@ -218,7 +219,7 @@ export function ClientList({ searchQuery }: ClientListProps) {
                   </Badge>
                 </td>
                 <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                  <QuickNotePopover clientId={client.id} clientName={client.fullName} />
+                  <QuickNotePopover clientId={client.id} clientName={`${client.firstName} ${client.lastName}`} />
                 </td>
               </tr>
             ))}
@@ -237,9 +238,9 @@ export function ClientList({ searchQuery }: ClientListProps) {
           >
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2">
-                <p className="font-medium text-foreground">{client.fullName}</p>
+                <p className="font-medium text-foreground">{client.firstName} {client.lastName}</p>
                 <div onClick={(e) => e.stopPropagation()}>
-                  <QuickNotePopover clientId={client.id} clientName={client.fullName} />
+                  <QuickNotePopover clientId={client.id} clientName={`${client.firstName} ${client.lastName}`} />
                 </div>
               </div>
               <Badge variant={priorityBadgeVariant(client.priority)}>

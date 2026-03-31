@@ -14,12 +14,15 @@ import {
   type Timestamp,
 } from "firebase/firestore";
 import { getDb } from "@/lib/firebase";
+import { splitFullName, joinName } from "@/lib/format";
 import type { LeadFormValues } from "../types/lead";
 
 // ─── Firestore document shape ───────────────────────────────
 
 interface LeadDoc {
-  fullName: string;
+  firstName?: string;
+  lastName?: string;
+  fullName?: string; // legacy — dual-read migration
   estimatedAmount?: number;
   phone?: string;
   status: string;
@@ -31,7 +34,8 @@ interface LeadDoc {
 
 export interface LeadDTO {
   id: string;
-  fullName: string;
+  firstName: string;
+  lastName: string;
   estimatedAmount?: number;
   phone?: string;
   status: string;
@@ -56,9 +60,13 @@ export const leadConverter: FirestoreDataConverter<LeadDTO> = {
     options?: SnapshotOptions
   ): LeadDTO {
     const d = snapshot.data(options) as LeadDoc;
+    const names = (d.firstName && d.lastName)
+      ? { firstName: d.firstName, lastName: d.lastName }
+      : splitFullName(d.fullName ?? "");
     return {
       id: snapshot.id,
-      fullName: d.fullName,
+      firstName: names.firstName,
+      lastName: names.lastName,
       estimatedAmount: d.estimatedAmount,
       phone: d.phone,
       status: d.status ?? "new",
@@ -92,6 +100,7 @@ export async function createLead(
   const ref = collection(db, "users", uid, "leads");
   const docRef = await addDoc(ref, {
     ...values,
+    fullName: joinName(values.firstName, values.lastName),
     status: "new",
     createdAt: serverTimestamp(),
   });
@@ -109,7 +118,9 @@ export async function convertLead(
   // 1. Create client document
   const clientRef = collection(db, "users", uid, "clients");
   const clientDoc = await addDoc(clientRef, {
-    fullName: lead.fullName,
+    firstName: lead.firstName,
+    lastName: lead.lastName,
+    fullName: joinName(lead.firstName, lead.lastName),
     phone: lead.phone ?? "",
     email: "",
     leadSource: "",

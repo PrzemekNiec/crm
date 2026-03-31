@@ -876,11 +876,7 @@ export function ClientDetailsPage() {
   }
 
   // ─── Initials avatar ────────────────────────────────────
-  const initials = client.fullName
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
+  const initials = `${client.firstName[0] ?? ""}${client.lastName[0] ?? ""}`
     .toUpperCase();
 
   const sourceLabel =
@@ -918,7 +914,7 @@ export function ClientDetailsPage() {
 
             <div className="min-w-0">
               <h1 className="text-xl font-bold text-foreground truncate">
-                {client.fullName}
+                {client.firstName} {client.lastName}
               </h1>
 
               {/* Contact info */}
@@ -1037,9 +1033,9 @@ export function ClientDetailsPage() {
 
       {/* Tab content */}
       {tab === "notes" && id && <ActivityTimelineTab clientId={id} />}
-      {tab === "tasks" && id && <TasksTab clientId={id} clientName={client.fullName} />}
+      {tab === "tasks" && id && <TasksTab clientId={id} clientName={`${client.firstName} ${client.lastName}`} />}
       {tab === "documents" && id && <DocumentsTab clientId={id} />}
-      {tab === "deals" && id && <DealsTab clientId={id} clientName={client.fullName} />}
+      {tab === "deals" && id && <DealsTab clientId={id} clientName={`${client.firstName} ${client.lastName}`} />}
 
       {/* Edit client dialog */}
       <EditClientDialog
@@ -1055,7 +1051,7 @@ export function ClientDetailsPage() {
           onOpenChange={(v) => { if (!v) setLogInteractionType(null); }}
           type={logInteractionType ?? "phone"}
           clientId={id}
-          clientName={client.fullName}
+          clientName={`${client.firstName} ${client.lastName}`}
         />
       )}
     </div>

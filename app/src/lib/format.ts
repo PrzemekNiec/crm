@@ -28,3 +28,23 @@ export function formatPhoneNumber(phone: string): string {
   // Fallback: return as-is
   return phone;
 }
+
+/**
+ * Split a full name into first and last name.
+ * Uses last space as separator: "Jan Maria Kowalski" → { firstName: "Jan Maria", lastName: "Kowalski" }
+ * Single word → firstName only, lastName = "".
+ */
+export function splitFullName(fullName: string): { firstName: string; lastName: string } {
+  const trimmed = fullName.trim();
+  const lastSpace = trimmed.lastIndexOf(" ");
+  if (lastSpace === -1) return { firstName: trimmed, lastName: "" };
+  return {
+    firstName: trimmed.slice(0, lastSpace),
+    lastName: trimmed.slice(lastSpace + 1),
+  };
+}
+
+/** Join firstName + lastName into a display string. */
+export function joinName(firstName: string, lastName: string): string {
+  return `${firstName} ${lastName}`.trim();
+}

@@ -9,7 +9,8 @@ import { CLIENT_SOURCE_LABELS, type ClientSource } from "../types/client";
 import { downloadCSV } from "@/lib/csv";
 
 const CLIENT_CSV_COLUMNS = [
-  { key: "fullName", label: "Imię i Nazwisko" },
+  { key: "firstName", label: "Imię" },
+  { key: "lastName", label: "Nazwisko" },
   { key: "phone", label: "Telefon" },
   { key: "email", label: "E-mail" },
   { key: "source", label: "Źródło" },
@@ -25,7 +26,8 @@ export function ClientsPage() {
     if (!clients?.length) return;
 
     const rows = clients.map((c) => ({
-      fullName: c.fullName,
+      firstName: c.firstName,
+      lastName: c.lastName,
       phone: c.phone || "",
       email: c.email || "",
       source: CLIENT_SOURCE_LABELS[c.source as ClientSource] ?? c.source ?? "",

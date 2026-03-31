@@ -31,7 +31,7 @@ export function CreateLeadDialog({ open, onOpenChange }: CreateLeadDialogProps) 
 
   const { register, handleSubmit, reset } = useForm<LeadFormValues>({
     resolver: zodResolver(leadFormSchema) as Resolver<LeadFormValues>,
-    defaultValues: { fullName: "", estimatedAmount: undefined, phone: "" },
+    defaultValues: { firstName: "", lastName: "", estimatedAmount: undefined, phone: "" },
   });
 
   const onSubmit = async (values: LeadFormValues) => {
@@ -94,7 +94,7 @@ export function CreateLeadDialog({ open, onOpenChange }: CreateLeadDialogProps) 
             <div className="text-sm">
               <p className="font-medium text-yellow-400">
                 Uwaga: Ten numer telefonu istnieje już w bazie jako {duplicate.source === "client" ? "Klient" : "Potencjalny"} o imieniu{" "}
-                <span className="font-semibold text-foreground">{duplicate.fullName}</span>.
+                <span className="font-semibold text-foreground">{duplicate.firstName} {duplicate.lastName}</span>.
               </p>
               <p className="mt-1 text-muted-foreground">
                 Możesz jednak kontynuować zapis.
@@ -102,13 +102,23 @@ export function CreateLeadDialog({ open, onOpenChange }: CreateLeadDialogProps) 
             </div>
           </div>
         )}
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="lead-fullName">Imię i nazwisko *</Label>
-          <Input
-            id="lead-fullName"
-            placeholder="Jan Kowalski"
-            {...register("fullName")}
-          />
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="lead-firstName">Imię *</Label>
+            <Input
+              id="lead-firstName"
+              placeholder="Jan"
+              {...register("firstName")}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="lead-lastName">Nazwisko *</Label>
+            <Input
+              id="lead-lastName"
+              placeholder="Kowalski"
+              {...register("lastName")}
+            />
+          </div>
         </div>
 
         <div className="flex flex-col gap-1.5">

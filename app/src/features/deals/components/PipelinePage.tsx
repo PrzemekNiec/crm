@@ -99,7 +99,7 @@ export function PipelinePage() {
 
   // Always use the latest client name (not stale denormalized copy)
   const deals = useMemo(() => {
-    const nameMap = new Map(clients.map((c) => [c.id, c.fullName]));
+    const nameMap = new Map(clients.map((c) => [c.id, `${c.firstName} ${c.lastName}`]));
     return rawDeals.map((d) => ({
       ...d,
       clientName: nameMap.get(d.clientId) ?? d.clientName,

@@ -62,7 +62,8 @@ export function CreateClientDialog({
   } = useForm<ClientFormValues>({
     resolver: zodResolver(clientFormSchema) as Resolver<ClientFormValues>,
     defaultValues: {
-      fullName: "",
+      firstName: "",
+      lastName: "",
       phone: "",
       email: "",
       stage: "new_lead",
@@ -135,7 +136,7 @@ export function CreateClientDialog({
                 Klient o tym {duplicate.field === "phone" ? "numerze telefonu" : "adresie e-mail"} już istnieje w bazie.
               </p>
               <p className="mt-1 text-muted-foreground">
-                Istniejący klient: <span className="font-semibold text-foreground">{duplicate.fullName}</span>
+                Istniejący klient: <span className="font-semibold text-foreground">{duplicate.firstName} {duplicate.lastName}</span>
               </p>
             </div>
           </div>
@@ -208,19 +209,34 @@ export function CreateClientDialog({
           </div>
         </div>
 
-        {/* Full name */}
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="fullName">Imię i nazwisko *</Label>
-          <Input
-            id="fullName"
-            placeholder="Jan Kowalski"
-            {...register("fullName")}
-          />
-          {errors.fullName && (
-            <p className="text-xs text-destructive">
-              {errors.fullName.message}
-            </p>
-          )}
+        {/* First name + Last name */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="firstName">Imię *</Label>
+            <Input
+              id="firstName"
+              placeholder="Jan"
+              {...register("firstName")}
+            />
+            {errors.firstName && (
+              <p className="text-xs text-destructive">
+                {errors.firstName.message}
+              </p>
+            )}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="lastName">Nazwisko *</Label>
+            <Input
+              id="lastName"
+              placeholder="Kowalski"
+              {...register("lastName")}
+            />
+            {errors.lastName && (
+              <p className="text-xs text-destructive">
+                {errors.lastName.message}
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Phone */}

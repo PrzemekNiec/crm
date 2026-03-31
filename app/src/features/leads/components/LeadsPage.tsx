@@ -96,7 +96,7 @@ function ConvertDialog({
         <DialogDescription>
           Czy na pewno chcesz przenieść{" "}
           <span className="font-semibold text-foreground">
-            {lead.fullName}
+            {lead.firstName} {lead.lastName}
           </span>{" "}
           do głównej bazy klientów? Spowoduje to utworzenie jego profilu.
         </DialogDescription>
@@ -166,7 +166,7 @@ function RejectDialog({
         <DialogDescription>
           Dlaczego odrzucasz{" "}
           <span className="font-semibold text-foreground">
-            {lead.fullName}
+            {lead.firstName} {lead.lastName}
           </span>
           ?
         </DialogDescription>
@@ -227,7 +227,7 @@ export function LeadsPage() {
 
   const { register, handleSubmit, reset } = useForm<LeadFormValues>({
     resolver: zodResolver(leadFormSchema) as Resolver<LeadFormValues>,
-    defaultValues: { fullName: "", estimatedAmount: undefined, phone: "" },
+    defaultValues: { firstName: "", lastName: "", estimatedAmount: undefined, phone: "" },
   });
 
   const onSubmit = (values: LeadFormValues) => {
@@ -262,9 +262,15 @@ export function LeadsPage() {
       >
         <div className="flex flex-1 flex-col gap-1.5">
           <label className="text-xs font-medium text-muted-foreground">
-            Imię i nazwisko *
+            Imię *
           </label>
-          <Input placeholder="Jan Kowalski" {...register("fullName")} />
+          <Input placeholder="Jan" {...register("firstName")} />
+        </div>
+        <div className="flex flex-1 flex-col gap-1.5">
+          <label className="text-xs font-medium text-muted-foreground">
+            Nazwisko *
+          </label>
+          <Input placeholder="Kowalski" {...register("lastName")} />
         </div>
         <div className="flex w-full flex-col gap-1.5 sm:w-40">
           <label className="text-xs font-medium text-muted-foreground">
@@ -354,7 +360,7 @@ export function LeadsPage() {
                     className="transition-colors hover:bg-[var(--surface-5)]"
                   >
                     <td className="px-4 py-3 font-medium text-foreground">
-                      {lead.fullName}
+                      {lead.firstName} {lead.lastName}
                     </td>
                     <td className="px-4 py-3 text-foreground">
                       {formatPLN(lead.estimatedAmount)}
@@ -409,7 +415,7 @@ export function LeadsPage() {
                 style={GLASS}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <p className="font-medium text-foreground">{lead.fullName}</p>
+                  <p className="font-medium text-foreground">{lead.firstName} {lead.lastName}</p>
                   <Badge
                     variant={statusBadgeVariant(lead.status)}
                     className={isFreshLead(lead.status, lead.createdAt) ? "animate-pulse bg-amber-500/20 text-amber-400 border border-amber-500/40" : ""}

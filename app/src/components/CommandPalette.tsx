@@ -79,17 +79,18 @@ export function CommandPalette() {
     const q = query.toLowerCase();
     const out: SearchResult[] = [];
 
-    // Clients: fullName, phone, email
+    // Clients: firstName + lastName, phone, email
     for (const c of clients) {
       if (out.filter((r) => r.category === "clients").length >= MAX_PER_CATEGORY) break;
+      const cName = `${c.firstName} ${c.lastName}`;
       if (
-        c.fullName.toLowerCase().includes(q) ||
+        cName.toLowerCase().includes(q) ||
         c.phone?.toLowerCase().includes(q) ||
         c.email?.toLowerCase().includes(q)
       ) {
         out.push({
           id: c.id,
-          label: c.fullName,
+          label: cName,
           secondary: c.phone || c.email || undefined,
           category: "clients",
           path: `/clients/${c.id}`,

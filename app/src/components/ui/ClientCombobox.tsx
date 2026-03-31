@@ -7,7 +7,8 @@ import { cn } from "@/lib/cn";
 
 interface ClientOption {
   id: string;
-  fullName: string;
+  firstName: string;
+  lastName: string;
   phone?: string;
   email?: string;
 }
@@ -51,7 +52,7 @@ export function ClientCombobox({
     const q = query.toLowerCase();
     return clients.filter(
       (c: ClientOption) =>
-        c.fullName.toLowerCase().includes(q) ||
+        `${c.firstName} ${c.lastName}`.toLowerCase().includes(q) ||
         c.phone?.toLowerCase().includes(q) ||
         c.email?.toLowerCase().includes(q)
     );
@@ -84,7 +85,7 @@ export function ClientCombobox({
   const selectClient = useCallback(
     (client: ClientOption | null) => {
       if (client) {
-        onChange(client.id, client.fullName);
+        onChange(client.id, `${client.firstName} ${client.lastName}`);
         setQuery("");
       } else {
         onChange("", "");
@@ -172,7 +173,7 @@ export function ClientCombobox({
               selectedClient ? "text-foreground" : "text-muted-foreground"
             )}
           >
-            {selectedClient ? selectedClient.fullName : (value ? value : emptyLabel)}
+            {selectedClient ? `${selectedClient.firstName} ${selectedClient.lastName}` : (value ? value : emptyLabel)}
           </span>
         )}
         {value && !disabled && (
@@ -232,7 +233,7 @@ export function ClientCombobox({
                 >
                   <User className="h-4 w-4 text-muted-foreground shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <span className="font-medium truncate block">{client.fullName}</span>
+                    <span className="font-medium truncate block">{client.firstName} {client.lastName}</span>
                     {(client.phone || client.email) && (
                       <span className="text-xs text-muted-foreground truncate block">
                         {client.phone || client.email}
