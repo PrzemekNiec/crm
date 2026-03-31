@@ -286,28 +286,6 @@ export function splitFullName(fullName: string): { firstName: string; lastName: 
 
 ---
 
-## 🔵 PÓŹNIEJ: Powiadomienia push PWA (6H)
-
-### Prerequisite (ręczny krok)
-- [ ] Firebase Console → Project Settings → Cloud Messaging → Web Push certificates → Wygenerować klucz VAPID
-- [ ] GCP Console → APIs → Cloud Tasks API → Enable
-- [ ] Utworzyć kolejkę: `gcloud tasks queues create task-reminders --location=europe-west1`
-
-### Kroki
-- **H1:** FCM config + messaging singleton (`app/src/lib/messaging.ts`)
-- **H2:** Service Worker dla background push (`app/public/firebase-messaging-sw.js`)
-- **H3:** API notyfikacji — `requestPermission()`, zapis FCM token do Firestore
-- **H4:** NotificationsTab UI w Settings (status, toggle, czas przypomnienia, test button)
-- **H5:** Foreground notification handler (in-app toast)
-- **H6:** Cloud Function scheduler — Cloud Tasks scheduling helper
-- **H7:** HTTP endpoint `sendTaskReminder` — odczyt taska, wysyłka push
-- **H8:** Firestore trigger `onTaskWrite` — auto-schedule/cancel Cloud Tasks
-- **H9:** Token refresh + multi-device support
-- **H10:** Ikony powiadomień Android (ic_notification w różnych dpi)
-- **H11:** Test end-to-end + notification click → otwiera właściwy widok
-
----
-
 ## 🔵 NA KOŃCU: Import archiwum
 
 - Wrzucenie historycznych spraw archiwalnych do Firestore
