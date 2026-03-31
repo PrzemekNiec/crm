@@ -76,7 +76,7 @@ function TaskPopup({
   const uid = useAuthStore((s) => s.user?.uid);
   const qc = useQueryClient();
   const popupRef = useRef<HTMLDivElement>(null);
-  const titleInputRef = useRef<HTMLInputElement>(null);
+  const titleInputRef = useRef<HTMLTextAreaElement>(null);
 
   const dueDate = task.dueDate ? new Date(task.dueDate) : null;
 
@@ -251,37 +251,7 @@ function TaskPopup({
                 ))}
               </select>
             ) : (
-              <span className="text-sm">{TASK_TYPE_EMOJI[task.type]}</span>
-            )}
-            {editingTitle ? (
-              <input
-                ref={titleInputRef}
-                value={titleVal}
-                onChange={(e) => setTitleVal(e.target.value)}
-                onBlur={saveTitle}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") saveTitle();
-                  if (e.key === "Escape") { setTitleVal(task.title); setEditingTitle(false); }
-                }}
-                disabled={updateDetails.isPending}
-                className="text-base text-foreground bg-transparent border-b border-primary/50 outline-none w-full py-0"
-                autoFocus
-              />
-            ) : (
-              <h3
-                className={cn(
-                  "text-base text-muted-foreground truncate",
-                  task.status === "open" && "cursor-pointer hover:text-foreground transition-colors"
-                )}
-                onClick={() => {
-                  if (task.status !== "open") return;
-                  setEditingTitle(true);
-                  setTimeout(() => titleInputRef.current?.focus(), 0);
-                }}
-                title={task.status === "open" ? "Kliknij, aby edytować tytuł" : undefined}
-              >
-                {task.title}
-              </h3>
+              <span className="text-sm">{TASK_TYPE_EMOJI[task.type]} {TASK_TYPE_LABELS[task.type]}</span>
             )}
           </div>
         </div>
@@ -289,6 +259,39 @@ function TaskPopup({
           <X className="h-4 w-4" />
         </button>
       </div>
+
+      {/* Editable title — full width */}
+      {editingTitle ? (
+        <textarea
+          ref={titleInputRef}
+          value={titleVal}
+          onChange={(e) => setTitleVal(e.target.value)}
+          onBlur={saveTitle}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); saveTitle(); }
+            if (e.key === "Escape") { setTitleVal(task.title); setEditingTitle(false); }
+          }}
+          disabled={updateDetails.isPending}
+          rows={2}
+          className="w-full text-sm text-foreground bg-[var(--surface-6)] border border-[var(--surface-8)] rounded-md px-2 py-1.5 outline-none focus:ring-1 focus:ring-primary/50 resize-none mb-2"
+          autoFocus
+        />
+      ) : (
+        <p
+          className={cn(
+            "text-sm text-muted-foreground mb-2",
+            task.status === "open" && "cursor-pointer hover:text-foreground hover:bg-[var(--surface-5)] rounded px-1 -mx-1 py-0.5 transition-colors"
+          )}
+          onClick={() => {
+            if (task.status !== "open") return;
+            setEditingTitle(true);
+            setTimeout(() => titleInputRef.current?.focus(), 0);
+          }}
+          title={task.status === "open" ? "Kliknij, aby edytować tytuł" : undefined}
+        >
+          {task.title}
+        </p>
+      )}
 
       {dueDate && (
         <p className="text-xs text-muted-foreground mb-2">
