@@ -100,6 +100,25 @@ function TaskPopup({
 
   const [followUpOpen, setFollowUpOpen] = useState(false);
 
+  // Delete confirmation state
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleDeleteClick = () => {
+    if (confirmDelete) {
+      if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
+      deleteTask.mutate({
+        taskId: task.id,
+        googleEventId: task.googleEventId,
+        syncToGoogleCalendar: task.syncToGoogleCalendar,
+      });
+      onClose();
+    } else {
+      setConfirmDelete(true);
+      confirmTimerRef.current = setTimeout(() => setConfirmDelete(false), 3000);
+    }
+  };
+
   // Inline edit states
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleVal, setTitleVal] = useState(task.title);
@@ -337,17 +356,15 @@ function TaskPopup({
             <Button
               size="sm"
               variant="outline"
-              className="flex-1 text-xs text-red-400 border-red-500/30 hover:bg-red-500/10"
-              onClick={() => {
-                deleteTask.mutate({
-                  taskId: task.id,
-                  googleEventId: task.googleEventId,
-                  syncToGoogleCalendar: task.syncToGoogleCalendar,
-                });
-                onClose();
-              }}
+              className={cn(
+                "flex-1 text-xs transition-all",
+                confirmDelete
+                  ? "bg-red-500 text-white border-red-500 animate-pulse"
+                  : "text-red-400 border-red-500/30 hover:bg-red-500/10"
+              )}
+              onClick={handleDeleteClick}
             >
-              Usuń
+              {confirmDelete ? "Na pewno?" : "Usuń"}
             </Button>
           </div>
           <Button

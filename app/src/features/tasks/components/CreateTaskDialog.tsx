@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -31,6 +32,15 @@ interface CreateTaskDialogProps {
   defaultType?: string;
   defaultDueDate?: string;
 }
+
+const TYPE_DEFAULT_DURATION: Record<string, number> = {
+  call: 15,
+  meeting: 90,
+  followup: 15,
+  docs: 30,
+  check: 15,
+  custom: 30,
+};
 
 const typeOptions = TASK_TYPES.map((t) => ({
   value: t,
@@ -70,11 +80,26 @@ export function CreateTaskDialog({
       title: "",
       description: "",
       dueDate: defaultDueDate ?? "",
-      durationMin: 30,
+      durationMin: TYPE_DEFAULT_DURATION[(defaultType as string) ?? "call"] ?? 30,
       priority: "normal",
       syncToGoogleCalendar: true,
     },
   });
+
+  // Auto-update duration when type changes (unless user manually edited)
+  const durationTouched = useRef(false);
+  const watchedType = watch("type");
+
+  useEffect(() => {
+    if (!durationTouched.current) {
+      setValue("durationMin", TYPE_DEFAULT_DURATION[watchedType] ?? 30);
+    }
+  }, [watchedType, setValue]);
+
+  // Reset touch flag when dialog opens
+  useEffect(() => {
+    if (open) durationTouched.current = false;
+  }, [open]);
 
   const syncEnabled = watch("syncToGoogleCalendar");
 
@@ -208,7 +233,9 @@ export function CreateTaskDialog({
               type="number"
               min={5}
               max={480}
-              {...register("durationMin")}
+              {...register("durationMin", {
+                onChange: () => { durationTouched.current = true; },
+              })}
             />
           </div>
         </div>
