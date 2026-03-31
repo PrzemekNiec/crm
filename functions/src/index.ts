@@ -181,7 +181,7 @@ interface SyncTaskData {
 
 // ─── Smart formatting for Google Calendar events ────────────
 const CALENDAR_FORMAT: Record<string, { emoji: string; colorId: string }> = {
-  call: { emoji: "📞", colorId: "5" },       // Yellow / Banana
+  call: { emoji: "📞", colorId: "4" },       // Pink / Flamingo
 };
 const DEFAULT_FORMAT = { emoji: "💼", colorId: "11" }; // Red / Tomato
 
