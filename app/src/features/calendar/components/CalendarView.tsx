@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/Button";
 import { toast } from "@/components/ui/Toast";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useTasks } from "@/features/tasks/api/useTasks";
-import { useCompleteTask, useRescheduleTask } from "@/features/tasks/api/useUpdateTask";
+import { useCompleteTask, useRescheduleTask, useUpdateTaskDetails } from "@/features/tasks/api/useUpdateTask";
 import { useDeleteTask } from "@/features/tasks/api/useDeleteTask";
 import { tasksQueryKey } from "@/features/tasks/api/tasks";
-import { TASK_TYPE_EMOJI } from "@/features/tasks/types/task";
+import { TASK_TYPE_EMOJI, TASK_TYPES, TASK_TYPE_LABELS } from "@/features/tasks/types/task";
 import type { TaskDTO } from "@/features/tasks/types/task";
 import { CreateTaskDialog } from "@/features/tasks/components/CreateTaskDialog";
 import { cn } from "@/lib/cn";
@@ -72,9 +72,11 @@ function TaskPopup({
   const completeTask = useCompleteTask();
   const deleteTask = useDeleteTask();
   const rescheduleTask = useRescheduleTask();
+  const updateDetails = useUpdateTaskDetails();
   const uid = useAuthStore((s) => s.user?.uid);
   const qc = useQueryClient();
   const popupRef = useRef<HTMLDivElement>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
   const dueDate = task.dueDate ? new Date(task.dueDate) : null;
 
@@ -97,6 +99,53 @@ function TaskPopup({
   }, [onClose]);
 
   const [followUpOpen, setFollowUpOpen] = useState(false);
+
+  // Inline edit states
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleVal, setTitleVal] = useState(task.title);
+
+  const saveTitle = () => {
+    const trimmed = titleVal.trim();
+    setEditingTitle(false);
+    if (!trimmed || trimmed === task.title) {
+      setTitleVal(task.title);
+      return;
+    }
+    if (uid) {
+      qc.setQueryData<TaskDTO[]>(tasksQueryKey(uid), (old) =>
+        old?.map((t) => (t.id === task.id ? { ...t, title: trimmed } : t))
+      );
+    }
+    updateDetails.mutate({
+      taskId: task.id,
+      title: trimmed,
+      syncToGoogleCalendar: task.syncToGoogleCalendar,
+      dueDate: task.dueDate,
+      description: task.description,
+      durationMin: task.durationMin,
+      googleEventId: task.googleEventId,
+      type: task.type,
+    });
+  };
+
+  const handleTypeChange = (newType: string) => {
+    if (newType === task.type) return;
+    if (uid) {
+      qc.setQueryData<TaskDTO[]>(tasksQueryKey(uid), (old) =>
+        old?.map((t) => (t.id === task.id ? { ...t, type: newType as TaskDTO["type"] } : t))
+      );
+    }
+    updateDetails.mutate({
+      taskId: task.id,
+      type: newType,
+      syncToGoogleCalendar: task.syncToGoogleCalendar,
+      dueDate: task.dueDate,
+      description: task.description,
+      durationMin: task.durationMin,
+      googleEventId: task.googleEventId,
+      title: task.title,
+    });
+  };
 
   const colors = TYPE_COLORS[task.type] ?? TYPE_COLORS.custom;
 
@@ -170,8 +219,51 @@ function TaskPopup({
             </button>
           )}
           <div className="flex items-center gap-1.5">
-            <span className="text-sm">{TASK_TYPE_EMOJI[task.type]}</span>
-            <h3 className="text-base text-muted-foreground truncate">{task.title}</h3>
+            {task.status === "open" ? (
+              <select
+                value={task.type}
+                onChange={(e) => handleTypeChange(e.target.value)}
+                disabled={updateDetails.isPending}
+                className="text-sm bg-transparent border-none outline-none cursor-pointer p-0 appearance-none"
+                title="Zmień typ zadania"
+              >
+                {TASK_TYPES.map((t) => (
+                  <option key={t} value={t}>{TASK_TYPE_EMOJI[t]} {TASK_TYPE_LABELS[t]}</option>
+                ))}
+              </select>
+            ) : (
+              <span className="text-sm">{TASK_TYPE_EMOJI[task.type]}</span>
+            )}
+            {editingTitle ? (
+              <input
+                ref={titleInputRef}
+                value={titleVal}
+                onChange={(e) => setTitleVal(e.target.value)}
+                onBlur={saveTitle}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") saveTitle();
+                  if (e.key === "Escape") { setTitleVal(task.title); setEditingTitle(false); }
+                }}
+                disabled={updateDetails.isPending}
+                className="text-base text-foreground bg-transparent border-b border-primary/50 outline-none w-full py-0"
+                autoFocus
+              />
+            ) : (
+              <h3
+                className={cn(
+                  "text-base text-muted-foreground truncate",
+                  task.status === "open" && "cursor-pointer hover:text-foreground transition-colors"
+                )}
+                onClick={() => {
+                  if (task.status !== "open") return;
+                  setEditingTitle(true);
+                  setTimeout(() => titleInputRef.current?.focus(), 0);
+                }}
+                title={task.status === "open" ? "Kliknij, aby edytować tytuł" : undefined}
+              >
+                {task.title}
+              </h3>
+            )}
           </div>
         </div>
         <button onClick={onClose} className="text-muted-foreground hover:text-foreground shrink-0 cursor-pointer">
@@ -227,7 +319,7 @@ function TaskPopup({
       )}
 
       <div className={cn("inline-block rounded px-2 py-0.5 text-xs font-medium mb-3 border", colors.bg, colors.border, colors.text)}>
-        {task.type}
+        {TASK_TYPE_LABELS[task.type] ?? task.type}
         {task.durationMin > 0 && ` · ${task.durationMin} min`}
       </div>
 

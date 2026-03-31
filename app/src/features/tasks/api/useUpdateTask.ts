@@ -217,6 +217,73 @@ export function useRescheduleTask() {
   });
 }
 
+// ─── Update task details (title, type) ──────────────────────
+
+export interface UpdateTaskDetailsInput {
+  taskId: string;
+  title?: string;
+  type?: string;
+  syncToGoogleCalendar: boolean;
+  // For calendar re-sync
+  dueDate?: string | null;
+  description?: string;
+  durationMin?: number;
+  googleEventId?: string | null;
+}
+
+export function useUpdateTaskDetails() {
+  const uid = useAuthStore((s) => s.user?.uid);
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: UpdateTaskDetailsInput) => {
+      if (!uid) throw new Error("Brak zalogowanego użytkownika");
+
+      const { updateDoc: firestoreUpdate, doc, increment, serverTimestamp: srvTs } = await import("firebase/firestore");
+      const { getDb } = await import("@/lib/firebase");
+      const db = getDb();
+      const ref = doc(db, "users", uid, "tasks", input.taskId);
+
+      const updates: Record<string, unknown> = { updatedAt: srvTs() };
+      if (input.title !== undefined) updates.title = input.title;
+      if (input.type !== undefined) updates.type = input.type;
+
+      // Bump syncRevision if synced to calendar (title/type change must propagate)
+      if (input.syncToGoogleCalendar) {
+        updates.syncRevision = increment(1);
+        updates.syncState = "pending";
+      }
+
+      await firestoreUpdate(ref, updates);
+
+      // Re-sync to Google Calendar
+      if (input.syncToGoogleCalendar && input.dueDate) {
+        try {
+          const syncFn = httpsCallable(getFunctions(), "syncTaskToGoogleCalendar");
+          await syncFn({
+            taskId: input.taskId,
+            title: input.title,
+            description: input.description ?? "",
+            dueDate: input.dueDate,
+            durationMin: input.durationMin ?? 30,
+            googleEventId: input.googleEventId || generateGoogleEventId(input.taskId),
+            type: input.type,
+          });
+        } catch {
+          // Sync will retry later via Cloud Function
+        }
+      }
+    },
+    onSuccess: () => {
+      if (!uid) return;
+      queryClient.invalidateQueries({ queryKey: tasksQueryKey(uid) });
+    },
+    onError: () => {
+      toast.error("Nie udało się zaktualizować zadania");
+    },
+  });
+}
+
 // ─── Retry calendar sync ─────────────────────────────────────
 
 export interface RetrySyncInput {
