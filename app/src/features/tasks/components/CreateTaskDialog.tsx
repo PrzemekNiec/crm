@@ -28,6 +28,8 @@ interface CreateTaskDialogProps {
   onOpenChange: (open: boolean) => void;
   defaultClientId?: string;
   defaultClientName?: string;
+  defaultType?: string;
+  defaultDueDate?: string;
 }
 
 const typeOptions = TASK_TYPES.map((t) => ({
@@ -45,6 +47,8 @@ export function CreateTaskDialog({
   onOpenChange,
   defaultClientId,
   defaultClientName,
+  defaultType,
+  defaultDueDate,
 }: CreateTaskDialogProps) {
   const createTask = useCreateTask();
 
@@ -62,10 +66,10 @@ export function CreateTaskDialog({
     defaultValues: {
       clientId: defaultClientId ?? "",
       clientName: defaultClientName ?? "",
-      type: "call",
+      type: (defaultType as TaskFormValues["type"]) ?? "call",
       title: "",
       description: "",
-      dueDate: "",
+      dueDate: defaultDueDate ?? "",
       durationMin: 30,
       priority: "normal",
       syncToGoogleCalendar: true,

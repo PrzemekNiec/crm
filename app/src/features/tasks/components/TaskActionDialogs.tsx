@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { CalendarPlus } from "lucide-react";
 import {
   Dialog,
   DialogHeader,
@@ -16,15 +17,17 @@ export function CompleteTaskDialog({
   task,
   open,
   onOpenChange,
+  onCompleteAndPlanNext,
 }: {
   task: TaskDTO;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onCompleteAndPlanNext?: (task: TaskDTO) => void;
 }) {
   const complete = useCompleteTask();
   const [note, setNote] = useState("");
 
-  const handleConfirm = () => {
+  const doComplete = (planNext: boolean) => {
     complete.mutate(
       {
         taskId: task.id,
@@ -37,6 +40,9 @@ export function CompleteTaskDialog({
         onSuccess: () => {
           setNote("");
           onOpenChange(false);
+          if (planNext && onCompleteAndPlanNext) {
+            onCompleteAndPlanNext(task);
+          }
         },
       }
     );
@@ -45,7 +51,7 @@ export function CompleteTaskDialog({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleConfirm();
+      doComplete(false);
     }
   };
 
@@ -69,12 +75,22 @@ export function CompleteTaskDialog({
             Anuluj
           </Button>
           <Button
-            onClick={handleConfirm}
+            onClick={() => doComplete(false)}
             disabled={complete.isPending}
-            className="bg-emerald-600 hover:bg-emerald-700"
+            variant="secondary"
           >
             {complete.isPending ? "Zapisywanie…" : "Zakończ"}
           </Button>
+          {onCompleteAndPlanNext && (
+            <Button
+              onClick={() => doComplete(true)}
+              disabled={complete.isPending}
+              className="gap-1.5"
+            >
+              <CalendarPlus className="h-4 w-4" />
+              {complete.isPending ? "Zapisywanie…" : "Ukończ i zaplanuj kolejne"}
+            </Button>
+          )}
         </DialogFooter>
       </div>
     </Dialog>

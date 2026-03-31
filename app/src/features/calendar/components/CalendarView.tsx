@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { CalendarPlus, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { toast } from "@/components/ui/Toast";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -11,6 +11,7 @@ import { useDeleteTask } from "@/features/tasks/api/useDeleteTask";
 import { tasksQueryKey } from "@/features/tasks/api/tasks";
 import { TASK_TYPE_EMOJI } from "@/features/tasks/types/task";
 import type { TaskDTO } from "@/features/tasks/types/task";
+import { CreateTaskDialog } from "@/features/tasks/components/CreateTaskDialog";
 import { cn } from "@/lib/cn";
 import { getDb } from "@/lib/firebase";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
@@ -94,6 +95,8 @@ function TaskPopup({
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [onClose]);
+
+  const [followUpOpen, setFollowUpOpen] = useState(false);
 
   const colors = TYPE_COLORS[task.type] ?? TYPE_COLORS.custom;
 
@@ -229,32 +232,63 @@ function TaskPopup({
       </div>
 
       {task.status === "open" && (
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2">
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              className="flex-1 text-xs"
+              onClick={() => { completeTask.mutate({ taskId: task.id, clientId: task.clientId || null, taskTitle: task.title, taskType: task.type }); onClose(); }}
+            >
+              Ukończ
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1 text-xs text-red-400 border-red-500/30 hover:bg-red-500/10"
+              onClick={() => {
+                deleteTask.mutate({
+                  taskId: task.id,
+                  googleEventId: task.googleEventId,
+                  syncToGoogleCalendar: task.syncToGoogleCalendar,
+                });
+                onClose();
+              }}
+            >
+              Usuń
+            </Button>
+          </div>
           <Button
             size="sm"
             variant="default"
-            className="flex-1 text-xs"
-            onClick={() => { completeTask.mutate({ taskId: task.id, clientId: task.clientId || null, taskTitle: task.title, taskType: task.type }); onClose(); }}
-          >
-            Ukończ
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="flex-1 text-xs text-red-400 border-red-500/30 hover:bg-red-500/10"
+            className="w-full text-xs gap-1.5"
             onClick={() => {
-              deleteTask.mutate({
-                taskId: task.id,
-                googleEventId: task.googleEventId,
-                syncToGoogleCalendar: task.syncToGoogleCalendar,
-              });
-              onClose();
+              completeTask.mutate(
+                { taskId: task.id, clientId: task.clientId || null, taskTitle: task.title, taskType: task.type },
+                { onSuccess: () => { onClose(); setFollowUpOpen(true); } }
+              );
             }}
           >
-            Usuń
+            <CalendarPlus className="h-3.5 w-3.5" />
+            Ukończ i zaplanuj kolejne
           </Button>
         </div>
       )}
+
+      <CreateTaskDialog
+        open={followUpOpen}
+        onOpenChange={setFollowUpOpen}
+        defaultClientId={task.clientId || undefined}
+        defaultClientName={task.clientName || undefined}
+        defaultType={task.type}
+        defaultDueDate={(() => {
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          const dd = tomorrow.toISOString().split("T")[0];
+          const time = task.dueDate?.split("T")[1]?.slice(0, 5) ?? "09:00";
+          return `${dd}T${time}`;
+        })()}
+      />
     </div>
   );
 }

@@ -19,6 +19,7 @@ import {
 } from "../types/task";
 import { useRescheduleTask, useRetrySync } from "../api/useUpdateTask";
 import { CompleteTaskDialog, CancelTaskDialog } from "./TaskActionDialogs";
+import { CreateTaskDialog } from "./CreateTaskDialog";
 import { TaskDetailsSheet } from "./TaskDetailsSheet";
 import {
   AlertTriangle,
@@ -217,6 +218,8 @@ export function TaskActions({ task }: { task: TaskDTO }) {
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [completeOpen, setCompleteOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [followUpOpen, setFollowUpOpen] = useState(false);
+  const [followUpTask, setFollowUpTask] = useState<TaskDTO | null>(null);
   const retrySync = useRetrySync();
 
   const isDone = task.status === "done" || task.status === "cancelled" || task.status === "system_cancelled";
@@ -291,6 +294,10 @@ export function TaskActions({ task }: { task: TaskDTO }) {
         task={task}
         open={completeOpen}
         onOpenChange={setCompleteOpen}
+        onCompleteAndPlanNext={(t) => {
+          setFollowUpTask(t);
+          setFollowUpOpen(true);
+        }}
       />
       <RescheduleDialog
         task={task}
@@ -302,6 +309,25 @@ export function TaskActions({ task }: { task: TaskDTO }) {
         open={cancelOpen}
         onOpenChange={setCancelOpen}
       />
+      {followUpTask && (
+        <CreateTaskDialog
+          open={followUpOpen}
+          onOpenChange={(v) => {
+            setFollowUpOpen(v);
+            if (!v) setFollowUpTask(null);
+          }}
+          defaultClientId={followUpTask.clientId || undefined}
+          defaultClientName={followUpTask.clientName || undefined}
+          defaultType={followUpTask.type}
+          defaultDueDate={(() => {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const dd = tomorrow.toISOString().split("T")[0];
+            const time = followUpTask.dueDate?.split("T")[1] ?? "09:00";
+            return `${dd}T${time}`;
+          })()}
+        />
+      )}
     </>
   );
 }
