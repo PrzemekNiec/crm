@@ -61,6 +61,7 @@ import {
 } from "@/features/deals/types/deal";
 import { cn } from "@/lib/cn";
 import { GLASS } from "@/lib/glass";
+import { formatPhoneNumber } from "@/lib/format";
 
 const glassStyle = GLASS;
 
@@ -929,7 +930,7 @@ export function ClientDetailsPage() {
                     className="flex items-center gap-1.5 hover:text-foreground transition-colors"
                   >
                     <Phone className="h-3.5 w-3.5" />
-                    {client.phone}
+                    {formatPhoneNumber(client.phone)}
                   </a>
                 )}
                 {client.email && (

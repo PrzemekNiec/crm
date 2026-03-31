@@ -11,6 +11,7 @@ import {
 import type { ClientDTO } from "../api/clients";
 import { Users, Phone, Mail, Handshake } from "lucide-react";
 import { GLASS } from "@/lib/glass";
+import { formatPhoneNumber } from "@/lib/format";
 import { QuickNotePopover } from "./QuickNotePopover";
 
 // ─── Stage badge variant mapping ─────────────────────────────
@@ -170,7 +171,7 @@ export function ClientList({ searchQuery }: ClientListProps) {
                         className="flex items-center gap-1.5 hover:text-primary transition-colors"
                       >
                         <Phone className="h-3 w-3" />
-                        {client.phone}
+                        {formatPhoneNumber(client.phone)}
                       </a>
                     )}
                     {client.email && (

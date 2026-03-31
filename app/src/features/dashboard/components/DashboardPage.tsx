@@ -18,6 +18,7 @@ import type { TaskDTO } from "@/features/tasks/types/task";
 import type { LeadDTO } from "@/features/leads/api/leads";
 import type { DealDTO } from "@/features/deals/types/deal";
 import { DEAL_STAGE_LABELS } from "@/features/deals/types/deal";
+import { formatPhoneNumber } from "@/lib/format";
 import {
   AlertTriangle,
   Calendar,
@@ -587,7 +588,7 @@ function NewLeadsSection({ leads }: { leads: LeadDTO[] }) {
               {lead.phone && (
                 <span className="flex items-center gap-1">
                   <Phone className="h-3 w-3" />
-                  {lead.phone}
+                  {formatPhoneNumber(lead.phone)}
                 </span>
               )}
               {lead.estimatedAmount && (

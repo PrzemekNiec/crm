@@ -13,6 +13,7 @@ import {
   DialogFooter,
 } from "@/components/ui/Dialog";
 import { toast } from "@/components/ui/Toast";
+import { formatPhoneNumber } from "@/lib/format";
 import { useLeads, useCreateLead, useRejectLead } from "../api/useLeads";
 import { useConvertLead } from "../api/useConvertLead";
 import type { LeadDTO } from "../api/leads";
@@ -359,7 +360,7 @@ export function LeadsPage() {
                       {formatPLN(lead.estimatedAmount)}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
-                      {lead.phone || "—"}
+                      {lead.phone ? formatPhoneNumber(lead.phone) : "—"}
                     </td>
                     <td className="px-4 py-3">
                       <Badge
@@ -420,7 +421,7 @@ export function LeadsPage() {
                 </div>
                 <div className="mt-2 flex items-center gap-4 text-sm text-muted-foreground">
                   <span>{formatPLN(lead.estimatedAmount)}</span>
-                  {lead.phone && <span>{lead.phone}</span>}
+                  {lead.phone && <span>{formatPhoneNumber(lead.phone)}</span>}
                 </div>
                 {lead.status !== "converted" && (
                   <div className="mt-3 flex items-center gap-2">
