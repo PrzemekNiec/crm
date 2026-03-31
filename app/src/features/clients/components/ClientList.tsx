@@ -11,6 +11,7 @@ import {
 import type { ClientDTO } from "../api/clients";
 import { Users, Phone, Mail, Handshake } from "lucide-react";
 import { GLASS } from "@/lib/glass";
+import { QuickNotePopover } from "./QuickNotePopover";
 
 // ─── Stage badge variant mapping ─────────────────────────────
 
@@ -147,6 +148,7 @@ export function ClientList({ searchQuery }: ClientListProps) {
               <th className="px-4 py-3">Źródło</th>
               <th className="px-4 py-3">Etap</th>
               <th className="px-4 py-3">Priorytet</th>
+              <th className="px-4 py-3 w-10"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--surface-6)]">
@@ -214,6 +216,9 @@ export function ClientList({ searchQuery }: ClientListProps) {
                       client.priority}
                   </Badge>
                 </td>
+                <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                  <QuickNotePopover clientId={client.id} clientName={client.fullName} />
+                </td>
               </tr>
             ))}
           </tbody>
@@ -230,7 +235,12 @@ export function ClientList({ searchQuery }: ClientListProps) {
             style={GLASS}
           >
             <div className="flex items-start justify-between gap-2">
-              <p className="font-medium text-foreground">{client.fullName}</p>
+              <div className="flex items-center gap-2">
+                <p className="font-medium text-foreground">{client.fullName}</p>
+                <div onClick={(e) => e.stopPropagation()}>
+                  <QuickNotePopover clientId={client.id} clientName={client.fullName} />
+                </div>
+              </div>
               <Badge variant={priorityBadgeVariant(client.priority)}>
                 {PRIORITY_LABELS[client.priority as Priority] ??
                   client.priority}

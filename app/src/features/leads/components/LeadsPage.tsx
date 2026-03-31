@@ -53,6 +53,12 @@ function statusBadgeVariant(
   }
 }
 
+function isFreshLead(status: string, createdAt: string | null): boolean {
+  if (status !== "new" || !createdAt) return false;
+  const created = new Date(createdAt).getTime();
+  return Date.now() - created < 24 * 60 * 60 * 1000;
+}
+
 // ─── Skeleton ───────────────────────────────────────────────
 
 function SkeletonRow() {
@@ -356,9 +362,13 @@ export function LeadsPage() {
                       {lead.phone || "—"}
                     </td>
                     <td className="px-4 py-3">
-                      <Badge variant={statusBadgeVariant(lead.status)}>
-                        {LEAD_STATUS_LABELS[lead.status as LeadStatus] ??
-                          lead.status}
+                      <Badge
+                        variant={statusBadgeVariant(lead.status)}
+                        className={isFreshLead(lead.status, lead.createdAt) ? "animate-pulse bg-amber-500/20 text-amber-400 border border-amber-500/40" : ""}
+                      >
+                        {isFreshLead(lead.status, lead.createdAt)
+                          ? "NOWY"
+                          : (LEAD_STATUS_LABELS[lead.status as LeadStatus] ?? lead.status)}
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-right">
@@ -399,9 +409,13 @@ export function LeadsPage() {
               >
                 <div className="flex items-start justify-between gap-2">
                   <p className="font-medium text-foreground">{lead.fullName}</p>
-                  <Badge variant={statusBadgeVariant(lead.status)}>
-                    {LEAD_STATUS_LABELS[lead.status as LeadStatus] ??
-                      lead.status}
+                  <Badge
+                    variant={statusBadgeVariant(lead.status)}
+                    className={isFreshLead(lead.status, lead.createdAt) ? "animate-pulse bg-amber-500/20 text-amber-400 border border-amber-500/40" : ""}
+                  >
+                    {isFreshLead(lead.status, lead.createdAt)
+                      ? "NOWY"
+                      : (LEAD_STATUS_LABELS[lead.status as LeadStatus] ?? lead.status)}
                   </Badge>
                 </div>
                 <div className="mt-2 flex items-center gap-4 text-sm text-muted-foreground">
