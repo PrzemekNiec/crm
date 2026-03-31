@@ -582,7 +582,7 @@ export function CalendarView() {
 
     const endMinutes = calcMinutesFromY(e);
     const startMin = Math.min(ref.startMin, endMinutes);
-    const endMin = Math.max(ref.startMin, endMinutes);
+    const endMin = Math.max(ref.startMin, endMinutes) + 15;
     const diffMin = endMin - startMin;
 
     // Build datetime from start of selection
