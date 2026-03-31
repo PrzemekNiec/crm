@@ -98,10 +98,24 @@ export function CreateTaskDialog({
     }
   }, [watchedType, setValue]);
 
-  // Reset touch flag when dialog opens
+  // Reset form with new defaults when dialog opens
   useEffect(() => {
-    if (open) durationTouched.current = false;
-  }, [open]);
+    if (open) {
+      durationTouched.current = false;
+      const type = (defaultType as TaskFormValues["type"]) ?? "call";
+      reset({
+        clientId: defaultClientId ?? "",
+        clientName: defaultClientName ?? "",
+        type,
+        title: "",
+        description: "",
+        dueDate: defaultDueDate ?? "",
+        durationMin: defaultDurationMin ?? TYPE_DEFAULT_DURATION[type] ?? 30,
+        priority: "normal",
+        syncToGoogleCalendar: true,
+      });
+    }
+  }, [open, defaultDueDate, defaultDurationMin, defaultClientId, defaultClientName, defaultType, reset]);
 
   const syncEnabled = watch("syncToGoogleCalendar");
 
