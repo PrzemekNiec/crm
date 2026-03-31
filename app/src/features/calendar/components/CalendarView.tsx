@@ -418,7 +418,8 @@ export function CalendarView() {
   const [createOpen, setCreateOpen] = useState(false);
   const [slotDate, setSlotDate] = useState<string>("");
   const [slotDuration, setSlotDuration] = useState<number | undefined>(undefined);
-  const dragSelectRef = useRef<{ dayIdx: number; startY: number; startMinutes: number } | null>(null);
+  const [slotSelect, setSlotSelect] = useState<{ dayIdx: number; startMin: number; endMin: number } | null>(null);
+  const slotSelectRef = useRef<{ dayIdx: number; startMin: number } | null>(null);
 
   const uid = useAuthStore((s) => s.user?.uid);
   const qc = useQueryClient();
@@ -442,6 +443,18 @@ export function CalendarView() {
     setIsMobile(!mq.matches);
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  // Cancel slot selection if mouse released outside grid
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      if (slotSelectRef.current) {
+        slotSelectRef.current = null;
+        setSlotSelect(null);
+      }
+    };
+    window.addEventListener("mouseup", handleGlobalMouseUp);
+    return () => window.removeEventListener("mouseup", handleGlobalMouseUp);
   }, []);
 
   const weekDays = useMemo(
@@ -544,25 +557,35 @@ export function CalendarView() {
   }, []);
 
   const handleSlotMouseDown = useCallback((e: React.MouseEvent, dayIdx: number) => {
-    // Only left click, ignore if dragging a task
     if (e.button !== 0 || draggingTaskId) return;
+    // Ignore clicks on task blocks
+    if ((e.target as HTMLElement).closest("[draggable]")) return;
+    e.preventDefault();
     const minutes = calcMinutesFromY(e);
-    dragSelectRef.current = { dayIdx, startY: e.clientY, startMinutes: minutes };
+    slotSelectRef.current = { dayIdx, startMin: minutes };
+    setSlotSelect({ dayIdx, startMin: minutes, endMin: minutes + 15 });
   }, [draggingTaskId, calcMinutesFromY]);
 
+  const handleSlotMouseMove = useCallback((e: React.MouseEvent, dayIdx: number) => {
+    const ref = slotSelectRef.current;
+    if (!ref || ref.dayIdx !== dayIdx) return;
+    const currentMin = calcMinutesFromY(e);
+    const startMin = Math.min(ref.startMin, currentMin);
+    const endMin = Math.max(ref.startMin, currentMin) + 15; // at least 15min block
+    setSlotSelect({ dayIdx, startMin, endMin });
+  }, [calcMinutesFromY]);
+
   const handleSlotMouseUp = useCallback((e: React.MouseEvent, dayIdx: number) => {
-    const ref = dragSelectRef.current;
-    dragSelectRef.current = null;
+    const ref = slotSelectRef.current;
+    slotSelectRef.current = null;
     if (!ref || ref.dayIdx !== dayIdx || draggingTaskId) return;
 
-    // Check minimal mouse movement to distinguish from task click
-    if (Math.abs(e.clientY - ref.startY) < 3 && (e.target as HTMLElement).closest("[draggable]")) return;
-
     const endMinutes = calcMinutesFromY(e);
-    const startMin = Math.min(ref.startMinutes, endMinutes);
-    const diffMin = Math.abs(endMinutes - ref.startMinutes);
+    const startMin = Math.min(ref.startMin, endMinutes);
+    const endMin = Math.max(ref.startMin, endMinutes);
+    const diffMin = endMin - startMin;
 
-    // Build datetime
+    // Build datetime from start of selection
     const targetDay = weekDays[dayIdx];
     const hours = HOUR_START + Math.floor(startMin / 60);
     const mins = startMin % 60;
@@ -570,6 +593,7 @@ export function CalendarView() {
 
     setSlotDate(dateStr);
     setSlotDuration(diffMin >= 15 ? diffMin : undefined);
+    setSlotSelect(null);
     setCreateOpen(true);
   }, [weekDays, draggingTaskId, calcMinutesFromY]);
 
@@ -759,6 +783,7 @@ export function CalendarView() {
                 }}
                 onDrop={(e) => handleDrop(e, dayIdx)}
                 onMouseDown={(e) => handleSlotMouseDown(e, dayIdx)}
+                onMouseMove={(e) => handleSlotMouseMove(e, dayIdx)}
                 onMouseUp={(e) => handleSlotMouseUp(e, dayIdx)}
               >
                 {/* Hour grid lines + 15-min sub-lines */}
@@ -779,6 +804,25 @@ export function CalendarView() {
                     ))}
                   </div>
                 ))}
+
+                {/* Slot selection highlight */}
+                {slotSelect && slotSelect.dayIdx === dayIdx && (
+                  <div
+                    className="absolute inset-x-0 bg-primary/20 border border-primary/40 rounded-md z-10 pointer-events-none"
+                    style={{
+                      top: (slotSelect.startMin / 60) * ROW_HEIGHT,
+                      height: Math.max(((slotSelect.endMin - slotSelect.startMin) / 60) * ROW_HEIGHT, 15),
+                    }}
+                  >
+                    <span className="absolute left-1.5 top-0.5 text-[10px] font-medium text-primary">
+                      {String(HOUR_START + Math.floor(slotSelect.startMin / 60)).padStart(2, "0")}:
+                      {String(slotSelect.startMin % 60).padStart(2, "0")}
+                      {" — "}
+                      {String(HOUR_START + Math.floor(slotSelect.endMin / 60)).padStart(2, "0")}:
+                      {String(slotSelect.endMin % 60).padStart(2, "0")}
+                    </span>
+                  </div>
+                )}
 
                 {/* Drop indicator line */}
                 {isDragOver && dragOverCell && (
