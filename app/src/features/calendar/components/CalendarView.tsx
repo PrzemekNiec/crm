@@ -414,6 +414,12 @@ export function CalendarView() {
   const [dragOverCell, setDragOverCell] = useState<{ dayIdx: number; minutes: number } | null>(null);
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
 
+  // Click-to-create state
+  const [createOpen, setCreateOpen] = useState(false);
+  const [slotDate, setSlotDate] = useState<string>("");
+  const [slotDuration, setSlotDuration] = useState<number | undefined>(undefined);
+  const dragSelectRef = useRef<{ dayIdx: number; startY: number; startMinutes: number } | null>(null);
+
   const uid = useAuthStore((s) => s.user?.uid);
   const qc = useQueryClient();
   const reschedule = useRescheduleTask();
@@ -527,6 +533,45 @@ export function CalendarView() {
     setDraggingTaskId(null);
     setDragOverCell(null);
   }, []);
+
+  // ─── Click-to-create handlers ─────────────────────────────
+
+  const calcMinutesFromY = useCallback((e: React.MouseEvent) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const offsetY = e.clientY - rect.top;
+    const rawMinutes = (offsetY / ROW_HEIGHT) * 60;
+    return Math.round(rawMinutes / 15) * 15; // snap to 15min
+  }, []);
+
+  const handleSlotMouseDown = useCallback((e: React.MouseEvent, dayIdx: number) => {
+    // Only left click, ignore if dragging a task
+    if (e.button !== 0 || draggingTaskId) return;
+    const minutes = calcMinutesFromY(e);
+    dragSelectRef.current = { dayIdx, startY: e.clientY, startMinutes: minutes };
+  }, [draggingTaskId, calcMinutesFromY]);
+
+  const handleSlotMouseUp = useCallback((e: React.MouseEvent, dayIdx: number) => {
+    const ref = dragSelectRef.current;
+    dragSelectRef.current = null;
+    if (!ref || ref.dayIdx !== dayIdx || draggingTaskId) return;
+
+    // Check minimal mouse movement to distinguish from task click
+    if (Math.abs(e.clientY - ref.startY) < 3 && (e.target as HTMLElement).closest("[draggable]")) return;
+
+    const endMinutes = calcMinutesFromY(e);
+    const startMin = Math.min(ref.startMinutes, endMinutes);
+    const diffMin = Math.abs(endMinutes - ref.startMinutes);
+
+    // Build datetime
+    const targetDay = weekDays[dayIdx];
+    const hours = HOUR_START + Math.floor(startMin / 60);
+    const mins = startMin % 60;
+    const dateStr = `${targetDay.getFullYear()}-${String(targetDay.getMonth() + 1).padStart(2, "0")}-${String(targetDay.getDate()).padStart(2, "0")}T${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
+
+    setSlotDate(dateStr);
+    setSlotDuration(diffMin >= 15 ? diffMin : undefined);
+    setCreateOpen(true);
+  }, [weekDays, draggingTaskId, calcMinutesFromY]);
 
   const handleDrop = useCallback(
     (e: React.DragEvent, dayIdx: number) => {
@@ -713,6 +758,8 @@ export function CalendarView() {
                   }
                 }}
                 onDrop={(e) => handleDrop(e, dayIdx)}
+                onMouseDown={(e) => handleSlotMouseDown(e, dayIdx)}
+                onMouseUp={(e) => handleSlotMouseUp(e, dayIdx)}
               >
                 {/* Hour grid lines + 15-min sub-lines */}
                 {HOURS.map((hour) => (
@@ -818,6 +865,14 @@ export function CalendarView() {
           })}
         </div>
       </div>
+
+      {/* Click-to-create dialog */}
+      <CreateTaskDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        defaultDueDate={slotDate}
+        defaultDurationMin={slotDuration}
+      />
     </div>
   );
 }

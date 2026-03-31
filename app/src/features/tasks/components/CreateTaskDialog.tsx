@@ -31,6 +31,7 @@ interface CreateTaskDialogProps {
   defaultClientName?: string;
   defaultType?: string;
   defaultDueDate?: string;
+  defaultDurationMin?: number;
 }
 
 const TYPE_DEFAULT_DURATION: Record<string, number> = {
@@ -59,6 +60,7 @@ export function CreateTaskDialog({
   defaultClientName,
   defaultType,
   defaultDueDate,
+  defaultDurationMin,
 }: CreateTaskDialogProps) {
   const createTask = useCreateTask();
 
@@ -80,7 +82,7 @@ export function CreateTaskDialog({
       title: "",
       description: "",
       dueDate: defaultDueDate ?? "",
-      durationMin: TYPE_DEFAULT_DURATION[(defaultType as string) ?? "call"] ?? 30,
+      durationMin: defaultDurationMin ?? TYPE_DEFAULT_DURATION[(defaultType as string) ?? "call"] ?? 30,
       priority: "normal",
       syncToGoogleCalendar: true,
     },
