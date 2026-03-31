@@ -76,16 +76,21 @@ export function ClientList({ searchQuery }: ClientListProps) {
 
   const filtered = useMemo(() => {
     if (!clients) return [];
-    if (!searchQuery.trim()) return clients;
+    let result = [...clients];
 
-    const q = searchQuery.toLowerCase();
-    return clients.filter(
-      (c: ClientDTO) =>
-        c.firstName.toLowerCase().includes(q) ||
-        c.lastName.toLowerCase().includes(q) ||
-        c.phone.toLowerCase().includes(q) ||
-        c.email.toLowerCase().includes(q)
-    );
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (c: ClientDTO) =>
+          c.firstName.toLowerCase().includes(q) ||
+          c.lastName.toLowerCase().includes(q) ||
+          c.phone.toLowerCase().includes(q) ||
+          c.email.toLowerCase().includes(q)
+      );
+    }
+
+    result.sort((a, b) => a.lastName.localeCompare(b.lastName, "pl"));
+    return result;
   }, [clients, searchQuery]);
 
   // ─── Loading ───────────────────────────────────────────────
