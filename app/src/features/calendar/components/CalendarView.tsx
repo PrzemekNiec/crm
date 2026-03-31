@@ -26,11 +26,11 @@ const DAY_NAMES = ["Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "
 const DAY_NAMES_SHORT = ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Ndz"];
 
 const TYPE_COLORS: Record<string, { bg: string; border: string; text: string }> = {
-  call:     { bg: "bg-blue-500/20",    border: "border-blue-500/40",    text: "text-blue-700 dark:text-blue-300" },
-  meeting:  { bg: "bg-emerald-500/20", border: "border-emerald-500/40", text: "text-emerald-700 dark:text-emerald-300" },
+  call:     { bg: "bg-pink-500/20",    border: "border-pink-500/40",    text: "text-pink-700 dark:text-pink-300" },
+  meeting:  { bg: "bg-red-500/20",     border: "border-red-500/40",     text: "text-red-700 dark:text-red-300" },
   followup: { bg: "bg-amber-500/20",   border: "border-amber-500/40",   text: "text-amber-700 dark:text-amber-300" },
-  docs:     { bg: "bg-purple-500/20",  border: "border-purple-500/40",  text: "text-purple-700 dark:text-purple-300" },
-  check:    { bg: "bg-pink-500/20",    border: "border-pink-500/40",    text: "text-pink-700 dark:text-pink-300" },
+  docs:     { bg: "bg-blue-500/20",    border: "border-blue-500/40",    text: "text-blue-700 dark:text-blue-300" },
+  check:    { bg: "bg-purple-500/20",  border: "border-purple-500/40",  text: "text-purple-700 dark:text-purple-300" },
   custom:   { bg: "bg-gray-500/20",    border: "border-gray-500/40",    text: "text-gray-700 dark:text-gray-300" },
 };
 
