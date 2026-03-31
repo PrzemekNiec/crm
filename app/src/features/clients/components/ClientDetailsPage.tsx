@@ -29,6 +29,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "@/components/ui/Toast";
 import { useClient } from "../api/useClient";
+import { useDeleteClient } from "../api/useDeleteClient";
 import { useClientActivities, useCreateActivity } from "@/features/activities/api/useActivities";
 import { ActivityTimeline } from "@/features/activities/components/ActivityTimeline";
 import {
@@ -844,6 +845,8 @@ export function ClientDetailsPage() {
   const [tab, setTab] = useState<Tab>("notes");
   const [editOpen, setEditOpen] = useState(false);
   const [logInteractionType, setLogInteractionType] = useState<"phone" | "email" | "whatsapp" | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const deleteClient = useDeleteClient();
 
   // ─── Loading ─────────────────────────────────────────────
   if (isLoading) {
@@ -1004,6 +1007,15 @@ export function ClientDetailsPage() {
               <Pencil className="h-4 w-4" />
               <span className="hidden sm:inline">Edytuj</span>
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDeleteOpen(true)}
+              className="border-red-500/30 text-red-400 hover:bg-red-500/10"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span className="hidden sm:inline">Usuń</span>
+            </Button>
           </div>
         </div>
       </div>
@@ -1043,6 +1055,33 @@ export function ClientDetailsPage() {
         open={editOpen}
         onOpenChange={setEditOpen}
       />
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen} size="sm">
+        <DialogHeader>
+          <DialogTitle>Usuń klienta</DialogTitle>
+          <DialogDescription>
+            Czy na pewno chcesz usunąć{" "}
+            <span className="font-semibold text-foreground">
+              {client.firstName} {client.lastName}
+            </span>
+            {" "}z bazy? Klient zniknie z listy, ale dane pozostaną w archiwum.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+            Anuluj
+          </Button>
+          <Button
+            onClick={() => id && deleteClient.mutate(id)}
+            disabled={deleteClient.isPending}
+            className="border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20"
+          >
+            <Trash2 className="h-4 w-4" />
+            {deleteClient.isPending ? "Usuwanie…" : "Usuń klienta"}
+          </Button>
+        </DialogFooter>
+      </Dialog>
 
       {/* Log interaction dialog (Magic Links) */}
       {id && (

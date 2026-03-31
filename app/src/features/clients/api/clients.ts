@@ -368,3 +368,13 @@ export async function updateClient(
     await updateDoc(ref, clean);
   }
 }
+
+/** Soft-delete a client (sets softDeleted = true). */
+export async function softDeleteClient(
+  uid: string,
+  clientId: string
+): Promise<void> {
+  const db = getDb();
+  const ref = doc(db, "users", uid, "clients", clientId);
+  await updateDoc(ref, { softDeleted: true, updatedAt: serverTimestamp() });
+}
