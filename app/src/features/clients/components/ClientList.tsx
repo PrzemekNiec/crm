@@ -89,7 +89,11 @@ export function ClientList({ searchQuery }: ClientListProps) {
       );
     }
 
-    result.sort((a, b) => a.lastName.localeCompare(b.lastName, "pl"));
+    result.sort((a, b) => {
+      const last = a.lastName.localeCompare(b.lastName, "pl");
+      if (last !== 0) return last;
+      return a.firstName.localeCompare(b.firstName, "pl");
+    });
     return result;
   }, [clients, searchQuery]);
 
