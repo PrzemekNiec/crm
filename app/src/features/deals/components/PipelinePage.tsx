@@ -600,16 +600,16 @@ function ArchiveTable({
 }) {
   return (
     <div className="overflow-x-auto w-full">
-      <table className="w-full text-sm whitespace-nowrap">
+      <table className="w-full table-fixed text-sm whitespace-nowrap">
         <thead className="sticky top-0 z-10 bg-[var(--surface-4)]">
           <tr className="text-left text-[11px] text-muted-foreground uppercase tracking-wider">
-            <th className="px-4 py-2 font-medium">Klient</th>
-            <th className="px-4 py-2 font-medium">Bank</th>
-            <th className="px-4 py-2 font-medium text-right">Kwota</th>
-            <th className="px-4 py-2 font-medium text-right">Stawka %</th>
-            <th className="px-4 py-2 font-medium text-right">Prowizja</th>
-            <th className="px-4 py-2 font-medium">Źródło</th>
-            <th className="px-4 py-2 font-medium">Notatki</th>
+            <th className="w-[20%] px-4 py-2 font-medium">Klient</th>
+            <th className="w-[10%] px-4 py-2 font-medium">Bank</th>
+            <th className="w-[12%] px-4 py-2 font-medium text-right">Kwota</th>
+            <th className="w-[8%] px-4 py-2 font-medium text-right">Stawka %</th>
+            <th className="w-[12%] px-4 py-2 font-medium text-right">Prowizja</th>
+            <th className="w-[15%] px-4 py-2 font-medium">Źródło</th>
+            <th className="w-[23%] px-4 py-2 font-medium">Notatki</th>
           </tr>
         </thead>
         <tbody>
@@ -847,7 +847,7 @@ function ArchiveRow({
 
   return (
     <tr className="border-t border-[var(--surface-5)] hover:bg-[var(--surface-3)] transition-colors">
-      <td className="px-4 py-2.5 text-foreground font-medium">
+      <td className="px-4 py-2.5 text-foreground font-medium truncate overflow-hidden">
         {deal.clientId ? (
           <Link to={`/clients/${deal.clientId}`} className="hover:text-blue-400 hover:underline transition-colors">
             {deal.clientName ?? "—"}
@@ -861,7 +861,7 @@ function ArchiveRow({
           </Badge>
         )}
       </td>
-      <td className="px-4 py-2.5 text-foreground">
+      <td className="px-4 py-2.5 text-foreground truncate overflow-hidden">
         {editingBank ? (
           <input
             ref={bankRef}
@@ -873,7 +873,7 @@ function ArchiveRow({
               if (e.key === "Escape") setEditingBank(false);
             }}
             onBlur={saveBank}
-            className="w-32 rounded bg-white/10 border border-white/20 px-1.5 py-0.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/50"
+            className="w-full rounded bg-white/10 border border-white/20 px-1.5 py-0.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/50"
           />
         ) : (
           <span
@@ -936,7 +936,7 @@ function ArchiveRow({
           </span>
         )}
       </td>
-      <td className="px-4 py-2.5 text-muted-foreground text-xs">
+      <td className="px-4 py-2.5 text-muted-foreground text-xs truncate overflow-hidden">
         {isReferral ? (
           <span>
             {clientInfo?.referralName ?? "Pośrednik"}{" "}
@@ -946,7 +946,7 @@ function ArchiveRow({
           clientInfo?.sourceLabel ?? "—"
         )}
       </td>
-      <td className="px-4 py-2.5 text-muted-foreground text-xs max-w-[250px] overflow-hidden">
+      <td className="px-4 py-2.5 text-muted-foreground text-xs overflow-hidden">
         {editingNotes ? (
           <textarea
             ref={notesRef}
