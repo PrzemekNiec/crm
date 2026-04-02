@@ -1,11 +1,11 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useClients } from "../api/useClients";
+import { useDeals } from "@/features/deals/api/useDeals";
+import { DEAL_STAGE_LABELS, DEAL_STAGE_COLORS, type DealStage } from "@/features/deals/types/deal";
 import { Badge } from "@/components/ui/Badge";
 import {
-  STAGE_LABELS,
   PRIORITY_LABELS,
-  type ClientStage,
   type Priority,
 } from "../types/client";
 import type { ClientDTO } from "../api/clients";
@@ -13,26 +13,6 @@ import { Users, Phone, Mail, Handshake, Paperclip } from "lucide-react";
 import { GLASS } from "@/lib/glass";
 import { formatPhoneNumber } from "@/lib/format";
 import { QuickNotePopover } from "./QuickNotePopover";
-
-// ─── Stage badge variant mapping ─────────────────────────────
-
-function stageBadgeVariant(
-  stage: string
-): "default" | "secondary" | "success" | "destructive" | "warning" {
-  switch (stage) {
-    case "closed_won":
-      return "success";
-    case "closed_lost":
-      return "destructive";
-    case "dormant":
-      return "warning";
-    case "new_lead":
-    case "first_contact":
-      return "default";
-    default:
-      return "secondary";
-  }
-}
 
 function priorityBadgeVariant(
   priority: string
@@ -73,6 +53,24 @@ interface ClientListProps {
 export function ClientList({ searchQuery }: ClientListProps) {
   const navigate = useNavigate();
   const { data: clients, isLoading, isError } = useClients();
+  const { data: deals } = useDeals();
+
+  // Map clientId → latest active (non-archived, non-rejected) deal stage
+  const clientDealStage = useMemo(() => {
+    const map = new Map<string, DealStage>();
+    if (!deals) return map;
+    const active = deals.filter((d) => !d.isArchived && !d.isRejected);
+    // Sort by createdAt desc so first match per client is the newest deal
+    const sorted = [...active].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+    for (const deal of sorted) {
+      if (!map.has(deal.clientId)) {
+        map.set(deal.clientId, deal.stage);
+      }
+    }
+    return map;
+  }, [deals]);
 
   const filtered = useMemo(() => {
     if (!clients) return [];
@@ -157,7 +155,7 @@ export function ClientList({ searchQuery }: ClientListProps) {
               <th className="px-4 py-3">Imię i nazwisko</th>
               <th className="px-4 py-3">Kontakt</th>
               <th className="px-4 py-3">Źródło</th>
-              <th className="px-4 py-3">Etap</th>
+              <th className="px-4 py-3">Sprawa</th>
               <th className="px-4 py-3">Priorytet</th>
               <th className="px-4 py-3 w-10"></th>
             </tr>
@@ -222,9 +220,16 @@ export function ClientList({ searchQuery }: ClientListProps) {
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  <Badge variant={stageBadgeVariant(client.stage)}>
-                    {STAGE_LABELS[client.stage as ClientStage] ?? client.stage}
-                  </Badge>
+                  {clientDealStage.has(client.id) ? (
+                    <span
+                      className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium text-white"
+                      style={{ backgroundColor: DEAL_STAGE_COLORS[clientDealStage.get(client.id)!] }}
+                    >
+                      {DEAL_STAGE_LABELS[clientDealStage.get(client.id)!]}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground italic">Brak sprawy</span>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <Badge variant={priorityBadgeVariant(client.priority)}>
@@ -294,9 +299,16 @@ export function ClientList({ searchQuery }: ClientListProps) {
             </div>
 
             <div className="mt-3 flex items-center gap-2 flex-wrap">
-              <Badge variant={stageBadgeVariant(client.stage)}>
-                {STAGE_LABELS[client.stage as ClientStage] ?? client.stage}
-              </Badge>
+              {clientDealStage.has(client.id) ? (
+                <span
+                  className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium text-white"
+                  style={{ backgroundColor: DEAL_STAGE_COLORS[clientDealStage.get(client.id)!] }}
+                >
+                  {DEAL_STAGE_LABELS[clientDealStage.get(client.id)!]}
+                </span>
+              ) : (
+                <span className="text-xs text-muted-foreground italic">Brak sprawy</span>
+              )}
               {client.source === "referral" && (
                 <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
                   <Handshake className="h-3 w-3" />
