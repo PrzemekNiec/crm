@@ -245,6 +245,21 @@ export async function updateDealCommission(
   });
 }
 
+// ─── Update deal bank ──────────────────────────────────────
+
+export async function updateDealBank(
+  uid: string,
+  dealId: string,
+  bank: string
+): Promise<void> {
+  const db = getDb();
+  const ref = doc(db, "users", uid, "deals", dealId);
+  await updateDoc(ref, {
+    bank,
+    updatedAt: serverTimestamp(),
+  });
+}
+
 // ─── Archive deal (settlement) ──────────────────────────────
 
 export async function archiveDeal(

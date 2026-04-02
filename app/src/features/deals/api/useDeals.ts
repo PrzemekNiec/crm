@@ -12,6 +12,7 @@ import {
   toggleDealWatch,
   toggleCPRegistration,
   updateDealCommission,
+  updateDealBank,
   archiveDeal,
   rejectDeal,
   dealsQueryKey,
@@ -260,6 +261,26 @@ export function useUpdateDealCommission() {
     },
     onError: () => {
       toast.error("Nie udało się zaktualizować prowizji");
+    },
+  });
+}
+
+// ─── Update deal bank ───────────────────────────────────────
+
+export function useUpdateDealBank() {
+  const uid = useAuthStore((s) => s.user?.uid);
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ dealId, bank }: { dealId: string; bank: string }) => {
+      if (!uid) throw new Error("Brak zalogowanego użytkownika");
+      return updateDealBank(uid, dealId, bank);
+    },
+    onSuccess: () => {
+      if (uid) qc.invalidateQueries({ queryKey: dealsQueryKey(uid) });
+    },
+    onError: () => {
+      toast.error("Nie udało się zaktualizować banku");
     },
   });
 }

@@ -13,6 +13,7 @@ import {
   useToggleDealWatch,
   useToggleCPRegistration,
   useUpdateDealCommission,
+  useUpdateDealBank,
   useArchiveDeal,
   useRejectDeal,
 } from "../api/useDeals";
@@ -426,7 +427,7 @@ function ArchivedDealsTable({ deals }: { deals: DealDTO[] }) {
 
   const sortedMonths = Object.keys(grouped)
     .map(Number)
-    .sort((a, b) => a - b);
+    .sort((a, b) => b - a);
 
   const getNetCommission = (d: DealDTO) => {
     const gross = d.commissionValue ?? 0;
@@ -756,6 +757,7 @@ function ArchiveRow({
   const referralCut = isReferral ? deal.value * clientInfo.referralRate! / 100 : 0;
   const netCommission = (deal.commissionValue ?? 0) - referralCut;
   const updateCommission = useUpdateDealCommission();
+  const updateBank = useUpdateDealBank();
   const updateNotes = useUpdateDealNotes();
   const uid = useAuthStore((s) => s.user?.uid);
   const qc = useQueryClient();
@@ -764,6 +766,10 @@ function ArchiveRow({
   const [rate, setRate] = useState(deal.commissionRate ?? 0);
   const [val, setVal] = useState(deal.commissionValue ?? 0);
   const rateRef = useRef<HTMLInputElement>(null);
+
+  const [editingBank, setEditingBank] = useState(false);
+  const [bankVal, setBankVal] = useState(deal.bank ?? "");
+  const bankRef = useRef<HTMLInputElement>(null);
 
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesVal, setNotesVal] = useState(deal.notes ?? "");
@@ -795,6 +801,27 @@ function ArchiveRow({
   const handleRateChange = (newRate: number) => {
     setRate(newRate);
     setVal(Math.round(deal.value * newRate / 100));
+  };
+
+  const startEditBank = () => {
+    setBankVal(deal.bank ?? "");
+    setEditingBank(true);
+    setTimeout(() => bankRef.current?.focus(), 0);
+  };
+
+  const saveBank = () => {
+    const trimmed = bankVal.trim();
+    if (trimmed !== (deal.bank ?? "").trim()) {
+      if (uid) {
+        qc.setQueryData<DealDTO[]>(dealsQueryKey(uid), (old) =>
+          old?.map((d) =>
+            d.id === deal.id ? { ...d, bank: trimmed } : d
+          )
+        );
+      }
+      updateBank.mutate({ dealId: deal.id, bank: trimmed });
+    }
+    setEditingBank(false);
   };
 
   const startEditNotes = () => {
@@ -835,7 +862,28 @@ function ArchiveRow({
         )}
       </td>
       <td className="px-4 py-2.5 text-foreground">
-        {deal.bank ?? "—"}
+        {editingBank ? (
+          <input
+            ref={bankRef}
+            type="text"
+            value={bankVal}
+            onChange={(e) => setBankVal(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") saveBank();
+              if (e.key === "Escape") setEditingBank(false);
+            }}
+            onBlur={saveBank}
+            className="w-32 rounded bg-white/10 border border-white/20 px-1.5 py-0.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/50"
+          />
+        ) : (
+          <span
+            className="cursor-pointer group inline-flex items-center gap-1 hover:text-primary transition-colors"
+            onClick={startEditBank}
+          >
+            {deal.bank || "—"}
+            <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </span>
+        )}
       </td>
       <td className="px-4 py-2.5 text-foreground text-right">
         {formatCurrency(deal.value)}
