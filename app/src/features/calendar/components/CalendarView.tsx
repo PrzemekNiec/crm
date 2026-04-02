@@ -64,9 +64,11 @@ function formatMonthYear(d: Date): string {
 function TaskPopup({
   task,
   onClose,
+  onCompleteAndPlanNext,
 }: {
   task: TaskDTO;
   onClose: () => void;
+  onCompleteAndPlanNext: (task: TaskDTO) => void;
 }) {
   const navigate = useNavigate();
   const completeTask = useCompleteTask();
@@ -97,8 +99,6 @@ function TaskPopup({
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [onClose]);
-
-  const [followUpOpen, setFollowUpOpen] = useState(false);
 
   // Delete confirmation state
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -377,7 +377,7 @@ function TaskPopup({
             onClick={() => {
               completeTask.mutate(
                 { taskId: task.id, clientId: task.clientId || null, taskTitle: task.title, taskType: task.type },
-                { onSuccess: () => { onClose(); setFollowUpOpen(true); } }
+                { onSuccess: () => { onClose(); onCompleteAndPlanNext(task); } }
               );
             }}
           >
@@ -387,20 +387,6 @@ function TaskPopup({
         </div>
       )}
 
-      <CreateTaskDialog
-        open={followUpOpen}
-        onOpenChange={setFollowUpOpen}
-        defaultClientId={task.clientId || undefined}
-        defaultClientName={task.clientName || undefined}
-        defaultType={task.type}
-        defaultDueDate={(() => {
-          const tomorrow = new Date();
-          tomorrow.setDate(tomorrow.getDate() + 1);
-          const dd = tomorrow.toISOString().split("T")[0];
-          const time = task.dueDate?.split("T")[1]?.slice(0, 5) ?? "09:00";
-          return `${dd}T${time}`;
-        })()}
-      />
     </div>
   );
 }
@@ -426,6 +412,9 @@ export function CalendarView() {
   const reschedule = useRescheduleTask();
 
   const today = new Date();
+
+  // ─── Follow-up after complete ──────────────────────────────
+  const [followUpTask, setFollowUpTask] = useState<TaskDTO | null>(null);
 
   // ─── Mobile day view ──────────────────────────────────────
   const [isMobile, setIsMobile] = useState(() =>
@@ -899,7 +888,7 @@ export function CalendarView() {
 
                       {/* Popup */}
                       {selectedTask?.id === task.id && (
-                        <TaskPopup task={task} onClose={() => setSelectedTask(null)} />
+                        <TaskPopup task={task} onClose={() => setSelectedTask(null)} onCompleteAndPlanNext={(t) => { setSelectedTask(null); setFollowUpTask(t); }} />
                       )}
                     </div>
                   );
@@ -917,6 +906,24 @@ export function CalendarView() {
         defaultDueDate={slotDate}
         defaultDurationMin={slotDuration}
       />
+
+      {/* Follow-up dialog after "Ukończ i zaplanuj kolejne" */}
+      {followUpTask && (
+        <CreateTaskDialog
+          open={!!followUpTask}
+          onOpenChange={(open) => { if (!open) setFollowUpTask(null); }}
+          defaultClientId={followUpTask.clientId || undefined}
+          defaultClientName={followUpTask.clientName || undefined}
+          defaultType={followUpTask.type}
+          defaultDueDate={(() => {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const dd = tomorrow.toISOString().split("T")[0];
+            const time = followUpTask.dueDate?.split("T")[1]?.slice(0, 5) ?? "09:00";
+            return `${dd}T${time}`;
+          })()}
+        />
+      )}
     </div>
   );
 }
