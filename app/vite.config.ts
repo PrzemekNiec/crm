@@ -41,6 +41,27 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    chunkSizeWarningLimit: 500,
+    rollupOptions: {
+      output: {
+        manualChunks(id: string) {
+          if (id.includes("node_modules/react/") || id.includes("node_modules/react-dom/") || id.includes("node_modules/react-router")) {
+            return "vendor-react";
+          }
+          if (id.includes("node_modules/firebase/") || id.includes("node_modules/@firebase/")) {
+            return "vendor-firebase";
+          }
+          if (id.includes("node_modules/lucide-react") || id.includes("node_modules/date-fns") || id.includes("node_modules/class-variance-authority") || id.includes("node_modules/clsx") || id.includes("node_modules/tailwind-merge")) {
+            return "vendor-ui";
+          }
+          if (id.includes("node_modules/zod") || id.includes("node_modules/zustand") || id.includes("node_modules/@tanstack/react-query")) {
+            return "vendor-data";
+          }
+        },
+      },
+    },
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

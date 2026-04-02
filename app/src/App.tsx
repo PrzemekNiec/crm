@@ -1,13 +1,20 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { GoogleOAuthProvider } from "@react-oauth/google";
 import { useAuthListener } from "@/hooks/useAuthListener";
+import { useAuthStore } from "@/store/useAuthStore";
 import { AuthGuard } from "@/components/AuthGuard";
 import { AppShell } from "@/components/layout/AppShell";
 import { ToastContainer } from "@/components/ui/Toast";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Loader2 } from "lucide-react";
+
+// ─── Lazy-loaded Google OAuth (334 kB saved on login screen) ─
+const LazyGoogleOAuthProvider = lazy(() =>
+  import("@react-oauth/google").then((m) => ({
+    default: m.GoogleOAuthProvider,
+  }))
+);
 
 // ─── Lazy-loaded pages ──────────────────────────────────────
 
@@ -72,17 +79,31 @@ function AppInner() {
   );
 }
 
+function GoogleOAuthGate({ children }: { children: React.ReactNode }) {
+  const isLoggedIn = useAuthStore((s) => !!s.user);
+
+  if (!isLoggedIn) return <>{children}</>;
+
+  return (
+    <Suspense fallback={<>{children}</>}>
+      <LazyGoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+        {children}
+      </LazyGoogleOAuthProvider>
+    </Suspense>
+  );
+}
+
 export default function App() {
   return (
     <ErrorBoundary fallbackTitle="Aplikacja napotkała krytyczny błąd">
-      <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-        <QueryClientProvider client={queryClient}>
-          <BrowserRouter>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <GoogleOAuthGate>
             <AppInner />
             <ToastContainer />
-          </BrowserRouter>
-        </QueryClientProvider>
-      </GoogleOAuthProvider>
+          </GoogleOAuthGate>
+        </BrowserRouter>
+      </QueryClientProvider>
     </ErrorBoundary>
   );
 }
