@@ -55,6 +55,14 @@ export async function fetchDocuments(
   const q = query(ref, orderBy("uploadedAt", "desc"));
   const snap = await getDocs(q);
 
+  // Lazy backfill: sync hasDocuments flag if out of date
+  const clientRef = doc(db, "users", uid, "clients", clientId);
+  const hasAny = !snap.empty;
+  const clientSnap = await (await import("firebase/firestore")).getDoc(clientRef);
+  if (clientSnap.exists() && (clientSnap.data().hasDocuments ?? false) !== hasAny) {
+    updateDoc(clientRef, { hasDocuments: hasAny }).catch(() => {});
+  }
+
   return snap.docs.map((d) => {
     const data = d.data() as {
       name: string;
