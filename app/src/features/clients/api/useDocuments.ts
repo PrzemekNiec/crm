@@ -6,6 +6,7 @@ import {
   deleteDocument,
   documentsQueryKey,
 } from "./documents";
+import { clientsQueryKey } from "./clients";
 
 /**
  * Fetches all documents for a given client.
@@ -39,6 +40,7 @@ export function useUploadDocument(clientId: string | undefined) {
       qc.invalidateQueries({
         queryKey: documentsQueryKey(uid ?? "", clientId ?? ""),
       });
+      qc.invalidateQueries({ queryKey: clientsQueryKey(uid ?? "") });
     },
   });
 }
@@ -62,6 +64,7 @@ export function useDeleteDocument(clientId: string | undefined) {
       qc.invalidateQueries({
         queryKey: documentsQueryKey(uid ?? "", clientId ?? ""),
       });
+      qc.invalidateQueries({ queryKey: clientsQueryKey(uid ?? "") });
     },
   });
 }

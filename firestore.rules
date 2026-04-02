@@ -45,8 +45,8 @@ service cloud.firestore {
         allow read, write: if request.auth != null && request.auth.uid == uid;
       }
 
-      // Documents (client files)
-      match /documents/{documentId} {
+      // Documents (client files) — nested under clients
+      match /clients/{clientId}/documents/{documentId} {
         allow read, write: if request.auth != null && request.auth.uid == uid;
       }
 

@@ -138,6 +138,7 @@ interface ClientDoc {
   lastContactAt: Timestamp | null;
   nextActionAt: Timestamp | null;
   nextActionTaskId: string | null;
+  hasDocuments?: boolean;
   archived: boolean;
   softDeleted: boolean;
   createdAt: Timestamp;
@@ -172,6 +173,7 @@ export interface ClientDTO {
   nextActionTaskId: string | null;
   convertedFromLeadId?: string;
   convertedAt?: string | null;
+  hasDocuments: boolean;
   archived: boolean;
   softDeleted: boolean;
   createdAt: string | null;
@@ -217,6 +219,7 @@ export const clientConverter: FirestoreDataConverter<ClientDTO> = {
       nextActionTaskId: d.nextActionTaskId ?? null,
       convertedFromLeadId: d.convertedFromLeadId,
       convertedAt: timestampToISO(d.convertedAt ?? null),
+      hasDocuments: d.hasDocuments ?? false,
       archived: d.archived ?? false,
       softDeleted: d.softDeleted ?? false,
       createdAt: timestampToISO(d.createdAt),

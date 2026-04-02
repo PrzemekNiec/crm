@@ -12,6 +12,7 @@ import {
   getDocs,
   addDoc,
   deleteDoc,
+  updateDoc,
   serverTimestamp,
   type Timestamp,
 } from "firebase/firestore";
@@ -129,6 +130,10 @@ export async function uploadDocument(
     uploadedAt: serverTimestamp(),
   });
 
+  // Mark client as having documents
+  const clientRef = doc(db, "users", uid, "clients", clientId);
+  await updateDoc(clientRef, { hasDocuments: true });
+
   return {
     id: docRef.id,
     name: file.name,
@@ -165,4 +170,10 @@ export async function deleteDocument(
     documentId
   );
   await deleteDoc(docRef);
+
+  // Check if client still has documents — update flag
+  const colRef = collection(db, "users", uid, "clients", clientId, "documents");
+  const remaining = await getDocs(query(colRef, orderBy("uploadedAt", "desc")));
+  const clientRef = doc(db, "users", uid, "clients", clientId);
+  await updateDoc(clientRef, { hasDocuments: remaining.size > 0 });
 }

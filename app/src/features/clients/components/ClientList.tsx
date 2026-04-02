@@ -9,7 +9,7 @@ import {
   type Priority,
 } from "../types/client";
 import type { ClientDTO } from "../api/clients";
-import { Users, Phone, Mail, Handshake } from "lucide-react";
+import { Users, Phone, Mail, Handshake, Paperclip } from "lucide-react";
 import { GLASS } from "@/lib/glass";
 import { formatPhoneNumber } from "@/lib/format";
 import { QuickNotePopover } from "./QuickNotePopover";
@@ -170,7 +170,12 @@ export function ClientList({ searchQuery }: ClientListProps) {
                 className="transition-colors hover:bg-[var(--surface-5)] cursor-pointer"
               >
                 <td className="px-4 py-3 font-medium text-foreground">
-                  {client.lastName} {client.firstName}
+                  <span className="inline-flex items-center gap-1.5">
+                    {client.lastName} {client.firstName}
+                    {client.hasDocuments && (
+                      <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
+                    )}
+                  </span>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-col gap-0.5 text-muted-foreground">
@@ -247,7 +252,12 @@ export function ClientList({ searchQuery }: ClientListProps) {
           >
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2">
-                <p className="font-medium text-foreground">{client.lastName} {client.firstName}</p>
+                <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
+                  {client.lastName} {client.firstName}
+                  {client.hasDocuments && (
+                    <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
+                  )}
+                </span>
                 <div onClick={(e) => e.stopPropagation()}>
                   <QuickNotePopover clientId={client.id} clientName={`${client.firstName} ${client.lastName}`} />
                 </div>
