@@ -147,6 +147,10 @@ export function PipelinePage() {
         grouped[deal.stage].push(deal);
       }
     }
+    // Watched (pinned) deals float to top of each column
+    for (const stage of DEAL_STAGES) {
+      grouped[stage].sort((a, b) => (b.isWatched ? 1 : 0) - (a.isWatched ? 1 : 0));
+    }
     return grouped;
   }, [deals]);
 
