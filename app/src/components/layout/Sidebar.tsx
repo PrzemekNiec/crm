@@ -31,7 +31,6 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/leads", label: "Potencjalni", icon: Zap },
   { to: "/pipeline", label: "Lejek", icon: Kanban },
   { to: "/calendar", label: "Kalendarz", icon: Calendar },
-  { to: "/settings", label: "Ustawienia", icon: Settings },
 ];
 
 /** Items shown in mobile bottom navigation */
@@ -119,6 +118,20 @@ export function Sidebar() {
             </p>
           </div>
         </div>
+        <NavLink
+          to="/settings"
+          className={({ isActive }) =>
+            cn(
+              "mt-1 flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+              isActive
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-accent hover:text-foreground"
+            )
+          }
+        >
+          <Settings className="h-4 w-4" />
+          Ustawienia
+        </NavLink>
         <button
           type="button"
           onClick={toggleTheme}
