@@ -71,18 +71,23 @@ export function ClientList({ searchQuery }: ClientListProps) {
     return map;
   }, [tasks]);
 
-  // Map clientId → latest active (non-archived, non-rejected) deal stage
-  const clientDealStage = useMemo(() => {
-    const map = new Map<string, DealStage>();
+  // Map clientId → best deal info (active first, then archived/rejected fallback)
+  const clientDealInfo = useMemo(() => {
+    const map = new Map<string, { stage: DealStage; status: "active" | "archived" | "rejected" }>();
     if (!deals) return map;
-    const active = deals.filter((d) => !d.isArchived && !d.isRejected);
-    // Sort by createdAt desc so first match per client is the newest deal
-    const sorted = [...active].sort(
+    // Sort all deals by createdAt desc
+    const sorted = [...deals].sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
     for (const deal of sorted) {
-      if (!map.has(deal.clientId)) {
-        map.set(deal.clientId, deal.stage);
+      const existing = map.get(deal.clientId);
+      const isActive = !deal.isArchived && !deal.isRejected;
+      // Active deals always take priority
+      if (!existing || (isActive && existing.status !== "active")) {
+        map.set(deal.clientId, {
+          stage: deal.stage,
+          status: isActive ? "active" : deal.isRejected ? "rejected" : "archived",
+        });
       }
     }
     return map;
@@ -236,14 +241,23 @@ export function ClientList({ searchQuery }: ClientListProps) {
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  {clientDealStage.has(client.id) ? (
-                    <span
-                      className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium text-white"
-                      style={{ backgroundColor: DEAL_STAGE_COLORS[clientDealStage.get(client.id)!] }}
-                    >
-                      {DEAL_STAGE_LABELS[clientDealStage.get(client.id)!]}
-                    </span>
-                  ) : (
+                  {clientDealInfo.has(client.id) ? (() => {
+                    const info = clientDealInfo.get(client.id)!;
+                    return (
+                      <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                          info.status === "active" ? "text-white" : "text-white/70"
+                        }`}
+                        style={{
+                          backgroundColor: DEAL_STAGE_COLORS[info.stage],
+                          opacity: info.status === "active" ? 1 : 0.6,
+                        }}
+                      >
+                        {DEAL_STAGE_LABELS[info.stage]}
+                        {info.status === "rejected" && " (odrzucona)"}
+                      </span>
+                    );
+                  })() : (
                     <span className="text-xs text-muted-foreground italic">Brak sprawy</span>
                   )}
                 </td>
@@ -331,14 +345,23 @@ export function ClientList({ searchQuery }: ClientListProps) {
             </div>
 
             <div className="mt-3 flex items-center gap-2 flex-wrap">
-              {clientDealStage.has(client.id) ? (
-                <span
-                  className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium text-white"
-                  style={{ backgroundColor: DEAL_STAGE_COLORS[clientDealStage.get(client.id)!] }}
-                >
-                  {DEAL_STAGE_LABELS[clientDealStage.get(client.id)!]}
-                </span>
-              ) : (
+              {clientDealInfo.has(client.id) ? (() => {
+                const info = clientDealInfo.get(client.id)!;
+                return (
+                  <span
+                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                      info.status === "active" ? "text-white" : "text-white/70"
+                    }`}
+                    style={{
+                      backgroundColor: DEAL_STAGE_COLORS[info.stage],
+                      opacity: info.status === "active" ? 1 : 0.6,
+                    }}
+                  >
+                    {DEAL_STAGE_LABELS[info.stage]}
+                    {info.status === "rejected" && " (odrzucona)"}
+                  </span>
+                );
+              })() : (
                 <span className="text-xs text-muted-foreground italic">Brak sprawy</span>
               )}
               {client.source === "referral" && (
