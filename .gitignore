@@ -23,3 +23,20 @@ functions/lib
 *.njsproj
 *.sln
 *.sw?
+
+# Firebase cache
+.firebase/
+
+# Claude Code
+.claude/
+
+# Archives & legacy drafts
+crm-pro-pwa-final.zip
+crm-pro-pwa-final/
+crm-pro-pwa-v5/
+
+# Session notes & PRD docs (not part of source)
+sesja-*.md
+claude.txt
+[0-9]*.md
+logo-crm-pro-*.svg
