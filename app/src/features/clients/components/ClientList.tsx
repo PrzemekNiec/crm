@@ -2,31 +2,30 @@ import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useClients } from "../api/useClients";
 import { useDeals } from "@/features/deals/api/useDeals";
+import { useTasks } from "@/features/tasks/api/useTasks";
 import { DEAL_STAGE_LABELS, DEAL_STAGE_COLORS, type DealStage } from "@/features/deals/types/deal";
-import { Badge } from "@/components/ui/Badge";
-import {
-  PRIORITY_LABELS,
-  type Priority,
-} from "../types/client";
 import type { ClientDTO } from "../api/clients";
-import { Users, Phone, Mail, Handshake, Paperclip } from "lucide-react";
+import { Users, Phone, Mail, Handshake, Paperclip, CalendarClock } from "lucide-react";
 import { GLASS } from "@/lib/glass";
 import { formatPhoneNumber } from "@/lib/format";
 import { QuickNotePopover } from "./QuickNotePopover";
 
-function priorityBadgeVariant(
-  priority: string
-): "default" | "destructive" | "warning" | "secondary" {
-  switch (priority) {
-    case "high":
-      return "destructive";
-    case "normal":
-      return "secondary";
-    case "low":
-      return "default";
-    default:
-      return "secondary";
-  }
+function formatNextTaskDate(iso: string): { label: string; isOverdue: boolean; isToday: boolean } {
+  const date = new Date(iso);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const taskDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const diffDays = Math.round((taskDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) return { label: `${Math.abs(diffDays)} dni temu`, isOverdue: true, isToday: false };
+  if (diffDays === 0) return { label: "Dzisiaj", isOverdue: false, isToday: true };
+  if (diffDays === 1) return { label: "Jutro", isOverdue: false, isToday: false };
+  if (diffDays <= 7) return { label: `za ${diffDays} dni`, isOverdue: false, isToday: false };
+  return {
+    label: date.toLocaleDateString("pl-PL", { day: "numeric", month: "short" }),
+    isOverdue: false,
+    isToday: false,
+  };
 }
 
 // ─── Skeleton loader ─────────────────────────────────────────
@@ -54,6 +53,23 @@ export function ClientList({ searchQuery }: ClientListProps) {
   const navigate = useNavigate();
   const { data: clients, isLoading, isError } = useClients();
   const { data: deals } = useDeals();
+  const { data: tasks } = useTasks();
+
+  // Map clientId → nearest open task dueDate
+  const clientNextTask = useMemo(() => {
+    const map = new Map<string, string>(); // clientId → ISO dueDate
+    if (!tasks) return map;
+    const open = tasks.filter((t) => t.status === "open" && t.dueDate && t.clientId);
+    const sorted = [...open].sort(
+      (a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime()
+    );
+    for (const task of sorted) {
+      if (!map.has(task.clientId)) {
+        map.set(task.clientId, task.dueDate!);
+      }
+    }
+    return map;
+  }, [tasks]);
 
   // Map clientId → latest active (non-archived, non-rejected) deal stage
   const clientDealStage = useMemo(() => {
@@ -156,7 +172,7 @@ export function ClientList({ searchQuery }: ClientListProps) {
               <th className="px-4 py-3">Kontakt</th>
               <th className="px-4 py-3">Źródło</th>
               <th className="px-4 py-3">Sprawa</th>
-              <th className="px-4 py-3">Priorytet</th>
+              <th className="px-4 py-3">Następne zadanie</th>
               <th className="px-4 py-3 w-10"></th>
             </tr>
           </thead>
@@ -232,10 +248,19 @@ export function ClientList({ searchQuery }: ClientListProps) {
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  <Badge variant={priorityBadgeVariant(client.priority)}>
-                    {PRIORITY_LABELS[client.priority as Priority] ??
-                      client.priority}
-                  </Badge>
+                  {clientNextTask.has(client.id) ? (() => {
+                    const { label, isOverdue, isToday } = formatNextTaskDate(clientNextTask.get(client.id)!);
+                    return (
+                      <span className={`inline-flex items-center gap-1 text-xs font-medium ${
+                        isOverdue ? "text-red-400" : isToday ? "text-amber-400" : "text-muted-foreground"
+                      }`}>
+                        <CalendarClock className="h-3.5 w-3.5" />
+                        {label}
+                      </span>
+                    );
+                  })() : (
+                    <span className="text-xs text-muted-foreground italic">—</span>
+                  )}
                 </td>
                 <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                   <QuickNotePopover clientId={client.id} clientName={`${client.firstName} ${client.lastName}`} />
@@ -267,10 +292,17 @@ export function ClientList({ searchQuery }: ClientListProps) {
                   <QuickNotePopover clientId={client.id} clientName={`${client.firstName} ${client.lastName}`} />
                 </div>
               </div>
-              <Badge variant={priorityBadgeVariant(client.priority)}>
-                {PRIORITY_LABELS[client.priority as Priority] ??
-                  client.priority}
-              </Badge>
+              {clientNextTask.has(client.id) ? (() => {
+                const { label, isOverdue, isToday } = formatNextTaskDate(clientNextTask.get(client.id)!);
+                return (
+                  <span className={`inline-flex items-center gap-1 text-xs font-medium ${
+                    isOverdue ? "text-red-400" : isToday ? "text-amber-400" : "text-muted-foreground"
+                  }`}>
+                    <CalendarClock className="h-3.5 w-3.5" />
+                    {label}
+                  </span>
+                );
+              })() : null}
             </div>
 
             <div className="mt-2 flex items-center justify-between gap-2 text-sm text-muted-foreground">
