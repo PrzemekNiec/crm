@@ -164,17 +164,17 @@ function FinancialWidgets({
   const monthOptions = useMemo(() => buildMonthOptions(), []);
 
   const stats = useMemo(() => {
-    const filtered = selectedMonth === "all"
-      ? deals
-      : deals.filter((d) => {
-          if (d.stage === "wyplata" && d.payoutDate) {
-            return d.payoutDate === selectedMonth;
-          }
+    // Active deals are always shown regardless of month filter
+    const active = deals.filter((d) => d.stage !== "wyplata" && !d.isRejected && !d.isArchived);
+
+    // Closed deals are filtered by month (payout date or creation date)
+    const allClosed = deals.filter((d) => d.stage === "wyplata");
+    const closed = selectedMonth === "all"
+      ? allClosed
+      : allClosed.filter((d) => {
+          if (d.payoutDate) return d.payoutDate === selectedMonth;
           return d.createdAt?.slice(0, 7) === selectedMonth;
         });
-
-    const active = filtered.filter((d) => d.stage !== "wyplata" && !d.isRejected && !d.isArchived);
-    const closed = filtered.filter((d) => d.stage === "wyplata");
 
     return {
       pipelineValue: active.reduce((sum, d) => sum + d.value, 0),
